@@ -8,4 +8,6 @@ In order to get started, run:
 
     pip install -r < requirements.txt
 
-Then run the corresponding test case or file with python /path/to/file.py
+To run test cases, use the -m flag: 
+
+    python -m test._test_
