@@ -1,4 +1,5 @@
 import numpy as np 
+import numpy.random as npr
 import torch 
 import torch.nn as nn
 import torch.optim as optim
@@ -69,10 +70,9 @@ class DQNAgent():
 		self.GAMMA = 0.98
 		self.EP_LENGTH = 500
 		self.step_counter = 0
-		self.state = None
 
 		self.env = env
-		self.env.reset()
+		self.state = self.env.reset()
 		self.to_torch = self.env.torch_state
 
 		self.learning_rate = 1e-4
@@ -82,6 +82,7 @@ class DQNAgent():
 	def reset_model(self):
 		# resets model parameters
 		self.model = MLP_DQN(self.env.state_dim, self.env.nA)
+		self.target = MLP_DQN(self.env.state_dim, self.env.nA)
 		self.optimizer = optim.Adam(self.model.parameters(),
 									lr = self.learning_rate)
 
@@ -100,11 +101,11 @@ class DQNAgent():
 		gradient update with the gathered experiences
 		"""	
 		state_batch = torch.zeros(n_steps, self.env.state_dim)
-		action_batch = torch.zeros(n_steps, self.env.nA)
+		action_batch = torch.zeros(n_steps, 1, dtype=torch.long)
 		next_state_batch = torch.zeros(n_steps, self.env.state_dim)
 		reward_batch = torch.zeros(n_steps)
 		done_batch = np.zeros(n_steps)
-
+		
 		for step_id in range(n_steps):
 			t_state = self.to_torch(self.state)
 
@@ -120,12 +121,12 @@ class DQNAgent():
 
 			self.step_counter += 1
 			if done or self.step_counter == self.EP_LENGTH:
-				self.state = self.env.reset()[0]
+				self.state = self.env.reset()
 				self.step_counter = 0
 		#endfor
 
 		state_action_values = self.model.forward(state_batch) \
-										.gather(1, action_batch)
+										.gather(1, action_batch).squeeze()
 
 		next_state_values = self.target.forward(next_state_batch) \
 										.max(1)[0].detach()
