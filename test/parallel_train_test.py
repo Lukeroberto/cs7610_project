@@ -23,7 +23,7 @@ def train(id, env):
 
     # Setup env and agent
     env.reset()
-    agent = DQNAgent(env, EPSILON)
+    agent = DQNAgent(id, env, EPSILON)
     for i in range(TRAINING_BATCHES):
         agent.optimize(BATCH_SIZE)
     

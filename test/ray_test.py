@@ -12,3 +12,4 @@ def alive(id):
 for i in range(num_cpus):
     id = alive.remote(i)
     ray.get(id)
+    
