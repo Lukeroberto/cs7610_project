@@ -1,2 +1,8 @@
 ray
 setproctitle
+matplotlib
+torchvision
+cudatoolkit=10.1
+pytorch
+gym
+tqdm
