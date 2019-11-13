@@ -6,6 +6,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from collections import namedtuple
 import random
+import ray
 
 Transition = namedtuple(
     'Transition', ('state', 'action', 'next_state', 'reward'))
@@ -66,7 +67,6 @@ class MLP_DQN(nn.Module):
 
     def forward(self, x):
         return self.model(x.float())
-
 
 class DQNAgent():
     def __init__(self, p_id, env, epsilon):
@@ -169,7 +169,7 @@ class DQNAgent():
 
         self.model.load_state_dict(dict_params)
 
-
+@ray.remote
 class DQNAgent_solo():
     def __init__(self, env, optimize_rate=1):
         self.GAMMA = 0.98
@@ -275,3 +275,8 @@ class DQNAgent_solo():
         return step_id
         
         # endfor
+    def train(self, num_episodes):
+        returns = np.zeros(num_episodes)
+        for ep_id in range(num_episodes):
+            returns[ep_id] = self.run_episode(ep_id)
+        return returns
