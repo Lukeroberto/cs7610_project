@@ -190,6 +190,12 @@ class DQNAgent_solo():
         self.learning_rate = 1e-3
         self.reset_model()
 
+    def set_neighbors(self, neighbors):
+        self.neighbors = neighbors
+
+    def get_model(self):
+        return self.model
+
     def save_weights(self):
         torch.save(self.model.state_dict(), "results/{}.pth".format(self.p_id))
 
@@ -265,9 +271,6 @@ class DQNAgent_solo():
             self.step_counter += 1
             if self.step_counter % self.opt_freq == 0:
                 self.optimize()
-
-            if self.step_counter % self.target_update_interval == 0:
-                self.update_target()
                 self.step_counter = 0
 
             if done:
@@ -275,8 +278,38 @@ class DQNAgent_solo():
         return step_id
         
         # endfor
-    def train(self, num_episodes):
+    def train(self, num_episodes, diffusion=False):
         returns = np.zeros(num_episodes)
         for ep_id in range(num_episodes):
             returns[ep_id] = self.run_episode(ep_id)
+
+            if diffusion:
+                self.diffuse()
+
         return returns
+
+    def diffuse(self):
+        print("Diffusing...")
+        beta = 0.5 #The interpolation parameter    
+
+        # Get weights for neighbors
+        for n in self.neighbors:
+
+            # block to get neighbor weights
+            neighbor_model = ray.get(n.get_model.remote())
+            
+
+            # Get named parameter dicts
+            params1 = neighbor_model.named_parameters()
+            params2 = self.model.named_parameters()
+
+            # Average weights
+            dict_params2 = dict(params2)
+            for name1, param1 in params1:
+                if name1 in dict_params2:
+                    dict_params2[name1].data.copy_(beta*param1.data + (1-beta)*dict_params2[name1].data)
+
+            # Set my parameters to average
+            self.model.load_state_dict(dict_params2)
+            
+        print("Done!")
