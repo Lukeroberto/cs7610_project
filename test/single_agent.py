@@ -8,8 +8,8 @@ from tqdm import tqdm
 env = RandomizedCartpole()
 agent = DQNAgent_solo(env, 1)
 
-N_EPISODES = 500
-agent.set_scheduler((0, N_EPISODES-50), (0.2, 0.00))
+N_EPISODES = 1200
+agent.set_scheduler((0, N_EPISODES-50), (0.9, 0.00))
 
 RETURNS = np.zeros(N_EPISODES)
 for ep_id in tqdm(range(N_EPISODES)):

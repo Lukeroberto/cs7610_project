@@ -171,7 +171,9 @@ class DQNAgent():
 
 @ray.remote
 class DQNAgent_solo():
-    def __init__(self, env, optimize_rate=1):
+    def __init__(self, env, id, optimize_rate=1):
+        self.p_id = id 
+
         self.GAMMA = 0.98
         self.EP_LENGTH = 200
 
@@ -197,7 +199,7 @@ class DQNAgent_solo():
         return self.model
 
     def save_weights(self):
-        torch.save(self.model.state_dict(), "results/{}.pth".format(self.p_id))
+        torch.save(self.model.state_dict(), "results/models/agent{}.pth".format(self.p_id))
 
     def reset_model(self):
         # resets model parameters
@@ -289,15 +291,19 @@ class DQNAgent_solo():
         return returns
 
     def diffuse(self):
-        print("Diffusing...")
         beta = 0.5 #The interpolation parameter    
 
         # Get weights for neighbors
         for n in self.neighbors:
 
             # block to get neighbor weights
-            neighbor_model = ray.get(n.get_model.remote())
-            
+            neighbor_model = ray.wait([n.get_model.remote()], timeout=0.1)
+
+            if (len(neighbor_model[0]) == 0):
+                return 
+
+            for w in neighbor_model[0]:
+                neighbor_model = ray.get(w)
 
             # Get named parameter dicts
             params1 = neighbor_model.named_parameters()
@@ -311,5 +317,3 @@ class DQNAgent_solo():
 
             # Set my parameters to average
             self.model.load_state_dict(dict_params2)
-            
-        print("Done!")
