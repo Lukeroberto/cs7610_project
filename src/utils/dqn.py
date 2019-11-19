@@ -54,7 +54,7 @@ class EpsilonScheduler(object):
 
 
 class MLP_DQN(nn.Module):
-    def __init__(self, input_dim, output_dim, n_units=24):
+    def __init__(self, input_dim, output_dim, n_units=64):
         super(MLP_DQN, self).__init__()
 
         self.model = nn.Sequential(
@@ -175,10 +175,10 @@ class DQNAgent_solo():
         self.p_id = id 
 
         self.GAMMA = 0.98
-        self.EP_LENGTH = 200
+        self.EP_LENGTH = 50
 
-        self.memory_size = 100000
-        self.target_update_interval = 80
+        self.memory_size = 50000
+        self.target_update_interval = 30
         self.memory = ReplayMemory(self.memory_size)
         self.scheduler = EpsilonScheduler((0, 1e10), (1.0, 1.0))
         self.batch_size = 64
@@ -189,7 +189,7 @@ class DQNAgent_solo():
         self.state = self.env.reset()
         self.to_torch = self.env.torch_state
 
-        self.learning_rate = 1e-3
+        self.learning_rate = 1e-4
         self.reset_model()
 
     def set_neighbors(self, neighbors):
@@ -261,8 +261,6 @@ class DQNAgent_solo():
             t_state = self.to_torch(state)
             t_action = self.get_action(t_state, EPS)
             next_state, reward, done, _ = self.env.step(t_action.item())
-            if done: 
-                reward = -1
 
             t_next_state = self.to_torch(next_state)
             t_reward = torch.tensor(reward, dtype=torch.float).view(1, 1)
@@ -277,7 +275,7 @@ class DQNAgent_solo():
 
             if done:
                 break
-        return step_id
+        return done
         
         # endfor
     def train(self, num_episodes, diffusion=False):

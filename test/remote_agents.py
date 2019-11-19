@@ -5,7 +5,7 @@ import numpy.random as npr
 import matplotlib.pyplot as plt
 import sys
 
-from src.utils.environments import RandomizedCartpole
+from src.utils.environments import *
 from src.utils.dqn import DQNAgent, DQNAgent_solo
 import src.utils.plotting_utils  as plotting_utils
 
@@ -23,7 +23,7 @@ def main():
     print("Num episodes: " , N_EPISODES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(RandomizedCartpole(), 1) for _ in range(num_agents)]
+    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), 1) for _ in range(num_agents)]
 
     # Setup config
     [agent.set_scheduler.remote((0, N_EPISODES-50), (0.2, 0.00)) for agent in agents]

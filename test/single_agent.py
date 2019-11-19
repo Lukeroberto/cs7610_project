@@ -1,15 +1,15 @@
 import numpy as np 
 import matplotlib.pyplot as plt
 
-from src.utils.environments import RandomizedCartpole
+from src.utils.environments import *
 from src.utils.dqn import DQNAgent_solo
 from tqdm import tqdm
 
-env = RandomizedCartpole()
+env = ContinuousGridWorld()
 agent = DQNAgent_solo(env, 1)
 
-N_EPISODES = 1200
-agent.set_scheduler((0, N_EPISODES-50), (0.9, 0.00))
+N_EPISODES = 2000
+agent.set_scheduler((0, N_EPISODES-50), (1, 0.01))
 
 RETURNS = np.zeros(N_EPISODES)
 for ep_id in tqdm(range(N_EPISODES)):
@@ -17,7 +17,6 @@ for ep_id in tqdm(range(N_EPISODES)):
     
 
 plt.figure()
-plt.plot(RETURNS)
-
+plt.plot(np.convolve(RETURNS, 0.01*np.ones(100), mode='valid'))
 plt.ioff()
 plt.show()

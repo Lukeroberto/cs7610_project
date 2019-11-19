@@ -26,3 +26,42 @@ class RandomizedCartpole():
 
 	def torch_state(self, obs):
 		return torch.tensor(obs).view(-1, len(obs))
+
+class ContinuousGridWorld():
+	def __init__(self, n=20, rseed=None):
+		self.state = None
+		self.state_dim = 2
+		self.state_shape = (n,n)
+		self.bounds = np.array(((0.,0.), (1.,1.)))
+		self.n = n
+
+		self.dstep = 1.0/n
+		self._steps = self.dstep*np.array(((1.,0.),(1.,1.),(0.,1.),
+									(-1.,1.),(-1.,0.),(-1.,-1.),
+									(0.,-1.),(1.,-1.)))
+		self.nA = 8
+
+		self.goal = np.array((0.8,0.8))
+		self.start = (0.2, 0.2)
+
+	def random_state(self):
+		return np.random.random(size = 2)
+
+	def step(self, action):
+		delta = self._steps[action]
+		
+		self.state = np.clip(self.state + delta, 
+							self.bounds[0], 
+							self.bounds[1])
+		reward = (np.linalg.norm(np.subtract(self.goal, self.state)) < self.dstep).astype(int)
+		done = True if reward==1 else False
+		return self.state, reward, done, None
+
+	def reset(self):
+		self.state = np.array(self.random_state())
+		return self.state
+
+	def torch_state(self, state=None):
+		if state is None:
+			state = self.state
+		return torch.tensor(state).view(-1, len(state))

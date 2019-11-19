@@ -39,9 +39,13 @@ def main():
     print("Training...")
     train_ids = [agent.train.remote(N_EPISODES, diffusion=True) for agent in agents]
 
+<<<<<<< Updated upstream
     # Save weights
     [agent.save_weights.remote() for agent in agents]
     rewards = ray.get(train_ids)
+=======
+rewards = ray.get(train_ids[0], timeout=1)
+>>>>>>> Stashed changes
 
 
     plotting_utils.plot_workers(rewards)
