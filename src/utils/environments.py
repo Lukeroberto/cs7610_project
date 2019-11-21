@@ -35,14 +35,15 @@ class ContinuousGridWorld():
 		self.bounds = np.array(((0.,0.), (1.,1.)))
 		self.n = n
 
-		self.dstep = 1.0/n
-		self._steps = self.dstep*np.array(((1.,0.),(1.,1.),(0.,1.),
-									(-1.,1.),(-1.,0.),(-1.,-1.),
-									(0.,-1.),(1.,-1.)))
 		self.nA = 8
+		self.dstep = 1.0/n
+		angles = np.linspace(0, 2*np.pi,num=self.nA, endpoint=False)
+		self._steps = self.dstep*np.array([(np.cos(a), np.sin(a)) for a in angles])
 
-		self.goal = np.array((0.8,0.8))
+		self.goal = np.array((0.5,0.5))
 		self.start = (0.2, 0.2)
+
+		self.n_sigma = 0.00
 
 	def random_state(self):
 		return np.random.random(size = 2)
@@ -50,10 +51,10 @@ class ContinuousGridWorld():
 	def step(self, action):
 		delta = self._steps[action]
 		
-		self.state = np.clip(self.state + delta, 
+		self.state = np.clip(self.state + delta + np.random.normal(scale=self.n_sigma,size=self.state_dim), 
 							self.bounds[0], 
 							self.bounds[1])
-		reward = (np.linalg.norm(np.subtract(self.goal, self.state)) < self.dstep).astype(int)
+		reward = (np.linalg.norm(np.subtract(self.goal, self.state)) < 1.5*self.dstep).astype(int)
 		done = True if reward==1 else False
 		return self.state, reward, done, None
 
@@ -64,4 +65,4 @@ class ContinuousGridWorld():
 	def torch_state(self, state=None):
 		if state is None:
 			state = self.state
-		return torch.tensor(state).view(-1, len(state))
+		return torch.tensor(state).view(-1, self.state_dim)

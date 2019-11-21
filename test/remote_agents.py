@@ -26,7 +26,7 @@ def main():
     agents = [DQNAgent_solo.remote(ContinuousGridWorld(), i) for i in range(num_agents)]
 
     # Setup config
-    [agent.set_scheduler.remote((0, N_EPISODES-50), (1.0, 0.01)) for agent in agents]
+    [agent.set_scheduler.remote((0, N_EPISODES), (0.5, 0.01)) for agent in agents]
 
     # Train 
     train_ids = [agent.train.remote(N_EPISODES, diffusion=False) for agent in agents]
