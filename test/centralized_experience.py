@@ -5,6 +5,8 @@ import numpy.random as npr
 import matplotlib.pyplot as plt
 import sys
 import torch
+from tqdm import tqdm as tqdm
+
 
 from src.utils.environments import *
 from src.utils.dqn import CentralizedRunner, DQNAgent_central
@@ -35,7 +37,7 @@ def main():
 
     obj_ids = [runner.get_experience.remote(dict(AGENT.model.named_parameters()), BATCH_SIZE) for runner in runners]
     REWARDS = []
-    for i in range(1,N_EPISODES):
+    for i in tqdm(range(1,N_EPISODES)):
         for _ in range(num_agents):
             ready, not_ready = ray.wait(obj_ids, timeout=1)
             if len(ready) == 0: continue

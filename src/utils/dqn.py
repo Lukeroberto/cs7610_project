@@ -212,7 +212,7 @@ class DQNAgent_solo():
         return self.p_id
 
     def get_model(self):
-        return self.model
+        return dict(self.model.named_parameters())
 
     def save_weights(self):
         torch.save(self.model.state_dict(), "results/agent{}.pth".format(self.p_id))
@@ -224,6 +224,7 @@ class DQNAgent_solo():
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.learning_rate)
         self.memory.reset()
+        self.update_target()
 
     def update_target(self):
         self.target.load_state_dict(self.model.state_dict())
@@ -302,10 +303,9 @@ class DQNAgent_solo():
 
             if done:
                 break
+
         return done
         
-        # endfor
-    
     def train(self, num_episodes, diffusion=False):
         returns = np.zeros(num_episodes)
         train_diffusions = np.zeros(num_episodes)
@@ -344,9 +344,8 @@ class DQNAgent_solo():
             if self.test_id == "2b" and self.p_id == 0 and ep_id > 1000:
                 self.load_model(self.temp_model)
                 self.load_target(self.temp_target)
-
+            
             if diffusion:
-
                 # Test 2a, agents 3 and 4 need to remove links between one another
                 if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 500 and ep_id < 1000:
                     self.offline = self.neighbors[3] if self.p_id == 2 else self.neighbors[2]
@@ -364,7 +363,7 @@ class DQNAgent_solo():
                 if self.test_id == "2b" and self.p_id != 0 and ep_id > 1000:
                     self.neighbors.append(self.offline[0])
                     self.offline = []
-
+                
                 train_diffusions[ep_id] = self.diffuse()
 
         return returns
@@ -374,10 +373,10 @@ class DQNAgent_solo():
 
         # Get weights for neighbors
         num_diffuses =  0
-
         neighbor_models = [n.get_model.remote() for n in self.neighbors]
-        ready, not_ready = ray.wait(neighbor_models, timeout=0.5)
-
+        ready, not_ready = ray.wait(neighbor_models, 
+                                    num_returns=len(self.neighbors),
+                                    timeout=0.1)
         if (len(ready) == 0):
             return 
 
@@ -385,12 +384,11 @@ class DQNAgent_solo():
             neighbor_model = ray.get(w)
 
             # Get named parameter dicts
-            params1 = neighbor_model.named_parameters()
-            params2 = self.model.named_parameters()
+            params1 = neighbor_model
+            dict_params2 = self.get_model()
 
             # Average weights
-            dict_params2 = dict(params2)
-            for name1, param1 in params1:
+            for name1, param1 in params1.items():
                 if name1 in dict_params2:
                     dict_params2[name1].data.copy_(beta*param1.data + (1-beta)*dict_params2[name1].data)
 
@@ -406,18 +404,20 @@ class CentralizedRunner(object):
         self.to_torch = env.torch_state
         self.id = actor_id
         self.model = MLP_DQN(self.env.state_dim, self.env.nA)
+        self.target = MLP_DQN(self.env.state_dim, self.env.nA)
         self.lr = lr
         self.gamma = gamma
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr = self.lr)
 
-    def calc_gradient(self, params, batch_size, eps=1.0):
+    def calc_gradient(self, params, target_params, batch_size, eps=1.0):
         self.model.load_state_dict(params)
+        self.target.load_state_dict(target_params)
         batch = self.get_batch(batch_size, eps)
 
         q_vals = self.model.forward(batch["S"]) \
                                         .gather(1, batch["A"])
-        qp_vals = self.model.forward(batch["Sp"]) \
+        qp_vals = self.target.forward(batch["Sp"]) \
                         .detach().max(1)[0].unsqueeze(1)
         qp_vals[batch["D"]] = 0.
         target_vals = (qp_vals * self.gamma) + batch["R"]
@@ -432,7 +432,7 @@ class CentralizedRunner(object):
                 grads.append(p.grad.data.cpu().numpy())
             else:
                 grads.append(None)
-        return grads, batch["R"].numpy().reshape(-1), self.id
+        return grads, batch["R"].numpy().max(), self.id
 
     def get_action(self, t_state, epsilon):
         if npr.random() > epsilon:
@@ -455,22 +455,27 @@ class CentralizedRunner(object):
         R = []
         D = []
         
-        state = self.env.reset()
-        for step_id in range(num_steps):
-            t_state = self.to_torch(state)
-            t_action = self.get_action(t_state, eps)
-            next_state, reward, done, _ = self.env.step(t_action.item())
-            t_next_state = self.to_torch(next_state)
-            t_reward = torch.tensor(reward, dtype=torch.float).view(1, 1)
-            t_done = torch.tensor(done, dtype=torch.long).view(1,1)
-            state = np.copy(next_state)
+        going = True
+        while going:
+            state = self.env.reset()
+            for step_id in range(num_steps):
+                t_state = self.to_torch(state)
+                t_action = self.get_action(t_state, eps)
+                next_state, reward, done, _ = self.env.step(t_action.item())
+                t_next_state = self.to_torch(next_state)
+                t_reward = torch.tensor(reward, dtype=torch.float).view(1, 1)
+                t_done = torch.tensor(done, dtype=torch.long).view(1,1)
+                state = np.copy(next_state)
 
-            S.append(t_state)
-            A.append(t_action)
-            Sp.append(t_next_state)
-            R.append(t_reward)
-            D.append(t_done)
-            if done: break
+                S.append(t_state)
+                A.append(t_action)
+                Sp.append(t_next_state)
+                R.append(t_reward)
+                D.append(t_done)
+                if len(S) == num_steps: 
+                    going = False
+                    break
+                if done: break
 
         return {"S": torch.cat(S), 
                 "A": torch.cat(A),
