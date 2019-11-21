@@ -313,7 +313,6 @@ class DQNAgent_solo():
             if done:
                 break
 
-<<<<<<< HEAD
         self.returns.append(done)
         # Log periodically
         if self.logging and ep_id > 100 and ep_id % 50 == 0:
@@ -337,8 +336,6 @@ class DQNAgent_solo():
                 os.makedirs(results_dir)
             plt.savefig(results_dir + f"/agent_{self.p_id}_returns.png")
             plt.close()
-=======
->>>>>>> 3a2fda456774b89158af253c017bb0217f459cdd
         return done
         
     def train(self, num_episodes, diffusion=False):
@@ -409,14 +406,9 @@ class DQNAgent_solo():
         # Get weights for neighbors
         num_diffuses =  0
         neighbor_models = [n.get_model.remote() for n in self.neighbors]
-<<<<<<< HEAD
-        ready, not_ready = ray.wait(neighbor_models, num_returns=len(neighbor_models),timeout=0.1)
-
-=======
         ready, not_ready = ray.wait(neighbor_models, 
                                     num_returns=len(self.neighbors),
                                     timeout=0.1)
->>>>>>> 3a2fda456774b89158af253c017bb0217f459cdd
         if (len(ready) == 0):
             return 
 
