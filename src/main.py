@@ -19,11 +19,11 @@ def main():
     p = test_parser()
     args = p.parse_args()
 
-    returns = test_dict[args.test](args)
+    rewards = test_dict[args.test](args)
 
-    plotting_utils.plot_workers(rewards, smoothing=200)
+    plot_workers(rewards, smoothing=200)
     plt.savefig(f"results/test_{args.test}/workers.png")
-    plotting_utils.plot_workers_aggregate(rewards, smoothing=200)
+    plot_workers_aggregate(rewards, smoothing=200)
     plt.savefig(f"results/test_{args.test}/workers_agg.png")
 
 
@@ -46,7 +46,7 @@ def test_1a(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES) for agent in agents]
+    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
 
     return ray.get(train_ids)
 
@@ -70,7 +70,7 @@ def test_1b(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES) for agent in agents]
+    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
 
     return ray.get(train_ids)
 
@@ -92,21 +92,103 @@ def test_1c(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES) for agent in agents]
+    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
 
     return ray.get(train_ids)
 
 def test_2a(args):
-    raise NotImplementedError
+    NUM_EPISODES = int(args.length)
+
+    # Get graph
+    triangle = network_partition()
+
+    # Initialize workers
+    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), i, args.test) for i in range(NUM_CORES)]
+
+    # Setup config
+    [agent.set_scheduler.remote((0, NUM_EPISODES-50), (1.0, 0.01)) for agent in agents]
+
+    # Set neighbors
+    neighbors = generate_neighbor_graph(triangle, agents)
+    for agent in agents:
+        agent.set_neighbors.remote(neighbors[agent])
+
+    # Train 
+    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
+
+    return ray.get(train_ids)
 
 def test_2b(args):
-    raise NotImplementedError
+    NUM_EPISODES = int(args.length)
+
+    # Get graph
+    spoke = spoke_adj(NUM_CORES)
+
+    # Initialize workers
+    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), i, args.test) for i in range(NUM_CORES)]
+
+    # Setup config
+    [agent.set_scheduler.remote((0, NUM_EPISODES-50), (1.0, 0.01)) for agent in agents]
+
+    # Set neighbors
+    neighbors = generate_neighbor_graph(spoke, agents)
+    for agent in agents:
+        agent.set_neighbors.remote(neighbors[agent])
+
+    # Train 
+    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
+
+    return ray.get(train_ids)
 
 def test_3a(args):
-    raise NotImplementedError
+    NUM_EPISODES = int(args.length)
+
+    # Get graph
+    spoke = spoke_adj(NUM_CORES)
+
+    # Initialize workers
+    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), i, args.test, opt=False) for i in range(NUM_CORES)]
+
+    # Setup config
+    [agent.set_scheduler.remote((0, NUM_EPISODES-50), (0.0, 0.01)) for agent in agents]
+
+    # Set neighbors
+    neighbors = generate_neighbor_graph(spoke, agents)
+    for agent in agents:
+        agent.set_neighbors.remote(neighbors[agent])
+
+    # Set center model
+    agents[0].load_torch.remote("results/agent1.pth")
+
+    # Train 
+    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
+
+    return ray.get(train_ids)
 
 def test_3b(args):
-    raise NotImplementedError
+    NUM_EPISODES = int(args.length)
+
+    # Get graph
+    chain = chain_adj(NUM_CORES)
+
+    # Initialize workers
+    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), i, args.test, opt=False) for i in range(NUM_CORES)]
+
+    # Setup config
+    [agent.set_scheduler.remote((0, NUM_EPISODES-50), (0.0, 0.01)) for agent in agents]
+
+    # Set neighbors
+    neighbors = generate_neighbor_graph(chain, agents)
+    for agent in agents:
+        agent.set_neighbors.remote(neighbors[agent])
+
+    # Set center model
+    agents[0].load_torch.remote("results/agent1.pth")
+
+    # Train 
+    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
+
+    return ray.get(train_ids)
 
 test_dict = {
     "1a": test_1a,

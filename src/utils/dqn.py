@@ -177,7 +177,7 @@ class DQNAgent():
 
 @ray.remote
 class DQNAgent_solo():
-    def __init__(self, env, id, test_id, logging=True):
+    def __init__(self, env, id, test_id, opt=True, logging=True):
         self.p_id = id 
         self.test_id = test_id
 
@@ -200,15 +200,23 @@ class DQNAgent_solo():
         self.reset_model()
 
         self.logging = logging
+        self.offline = []
+        self.opt = opt
+
+        self.temp_model = None
+        self.temp_target = None
 
     def set_neighbors(self, neighbors):
         self.neighbors = neighbors
+    
+    def get_id(self):
+        return self.p_id
 
     def get_model(self):
         return self.model
 
     def save_weights(self):
-        torch.save(self.model.state_dict(), "results/models/agent{}.pth".format(self.p_id))
+        torch.save(self.model.state_dict(), "results/agent{}.pth".format(self.p_id))
 
     def reset_model(self):
         # resets model parameters
@@ -220,6 +228,15 @@ class DQNAgent_solo():
 
     def update_target(self):
         self.target.load_state_dict(self.model.state_dict())
+
+    def load_model(self, model):
+        self.model.load_state_dict(model.state_dict())
+    
+    def load_torch(self, filename):
+        self.model.load_state_dict(torch.load(filename))
+
+    def load_target(self, model):
+        self.target.load_state_dict(model.state_dict())
 
     def get_action(self, t_state, epsilon):
         if npr.random() > epsilon:
@@ -279,7 +296,8 @@ class DQNAgent_solo():
 
             self.step_counter += 1
             if self.step_counter % self.opt_freq == 0:
-                self.optimize()
+                if self.opt:
+                    self.optimize()
                 self.step_counter = 0
 
             if done:
@@ -289,21 +307,64 @@ class DQNAgent_solo():
         # endfor
     def train(self, num_episodes, diffusion=False):
         returns = np.zeros(num_episodes)
+        train_diffusions = np.zeros(num_episodes)
+
         for ep_id in range(num_episodes):
+            # Run episode and update returns
             returns[ep_id] = self.run_episode(ep_id)
 
+            # Log periodically
             if self.logging and ep_id > 100 and ep_id % 50 == 0:
-                plt.figure()
-                plt.plot(smooth(returns[:ep_id], 100))
+                fig, ax1 = plt.subplots()
 
-                results_dir = f"results/test_{self.test_id}/agent_{self.p_id}" 
+                ax1.set_xlabel('Episode')
+                ax1.set_ylabel('Success Rate [%]', color='b')
+                ax1.plot(smooth(returns[:ep_id], 100), color='b')
+                ax1.tick_params(axis='y', colors='b')
+
+                ax2 = ax1.twinx()
+                ax2.set_ylabel('Cumulative Diffusions', color='r')
+                ax2.plot(train_diffusions[:ep_id], color='r')
+                ax2.tick_params(axis='y', colors='r')
+                fig.tight_layout() 
+
+                results_dir = f"results/test_{self.test_id}/" 
                 if not os.path.isdir(results_dir):
                     os.makedirs(results_dir)
-                plt.savefig(results_dir + "/smoothed_returns.png")
+                plt.savefig(results_dir + f"/agent_{self.p_id}_returns.png")
                 plt.close()
 
+            # Test 2b, if center agent, stop learning                
+            if self.test_id == "2b" and self.p_id == 0 and ep_id > 500 and ep_id < 1000:
+                self.temp_model = self.model
+                self.temp_target = self.target
+                returns[ep_id] = -1
+
+            if self.test_id == "2b" and self.p_id == 0 and ep_id > 1000:
+                self.load_model(self.temp_model)
+                self.load_target(self.temp_target)
+
             if diffusion:
-                self.diffuse()
+
+                # Test 2a, agents 3 and 4 need to remove links between one another
+                if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 500 and ep_id < 1000:
+                    self.offline = self.neighbors[3] if self.p_id == 2 else self.neighbors[2]
+                    self.neighbors = self.neighbors.remove(self.offline[0])
+                # Test 2a, add edge back
+                if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 1000:
+                    self.neighbors.append(self.offline[0])
+                    self.offline = []
+                
+                # Test 2b, if on spoke, stop diffusing with center
+                if self.test_id == "2b" and self.p_id != 0 and ep_id > 500 and ep_id < 1000:
+                    self.offline = self.neighbors[0]
+                    self.neighbors = self.neighbors[1:]
+                # Test 2b, add center back
+                if self.test_id == "2b" and self.p_id != 0 and ep_id > 1000:
+                    self.neighbors.append(self.offline[0])
+                    self.offline = []
+
+                train_diffusions[ep_id] = self.diffuse()
 
         return returns
 
@@ -311,16 +372,16 @@ class DQNAgent_solo():
         beta = 0.5 #The interpolation parameter    
 
         # Get weights for neighbors
-        for n in self.neighbors:
+        num_diffuses =  0
 
-            # block to get neighbor weights
-            neighbor_model = ray.wait([n.get_model.remote()], timeout=0.1)
+        neighbor_models = [n.get_model.remote() for n in self.neighbors]
+        ready, not_ready = ray.wait(neighbor_models, timeout=0.5)
 
-            if (len(neighbor_model[0]) == 0):
-                return 
+        if (len(ready) == 0):
+            return 
 
-            for w in neighbor_model[0]:
-                neighbor_model = ray.get(w)
+        for w in ready:
+            neighbor_model = ray.get(w)
 
             # Get named parameter dicts
             params1 = neighbor_model.named_parameters()
@@ -334,3 +395,4 @@ class DQNAgent_solo():
 
             # Set my parameters to average
             self.model.load_state_dict(dict_params2)
+        return len(ready)

@@ -14,7 +14,7 @@ echo "Test 1b"
 # python -m src.main -t "1b" -l $NUM_EPISODES 
 # 1c: Chain network
 echo "Test 1c"
-python -m src.main -t "1c" -l $NUM_EPISODES 
+# python -m src.main -t "1c" -l $NUM_EPISODES 
 
 echo "Test suite 1 completed"
 
@@ -23,10 +23,10 @@ echo "Starting Test suite 2..."
 
 # 2a: Triangle network
 echo "Test 2a"
-python -m src.main -t "2a" -l $NUM_EPISODES 
+# python -m src.main -t "2a" -l $NUM_EPISODES 
 # 2b: Spoke network
 echo "Test 2b"
-python -m src.main -t "2b" -l $NUM_EPISODES 
+# python -m src.main -t "2b" -l $NUM_EPISODES 
 
 echo "Test suite 2 completed"
 
@@ -35,7 +35,7 @@ echo "Starting Test suite 3..."
 
 # 3a: Spoke network
 echo "Test 3a"
-python -m src.main -t "3b" -l $NUM_EPISODES 
+python -m src.main -t "3a" -l 10000 
 # 3b: Chain network
 echo "Test 3b"
-python -m src.main -t "3b" -l $NUM_EPISODES 
+python -m src.main -t "3b" -l 10000 
