@@ -6,7 +6,7 @@ import numpy.random as npr
 import matplotlib.pyplot as plt
 import sys
 
-from src.utils.environments import RandomizedCartpole
+from src.utils.environments import ContinuousGridWorld
 from src.utils.dqn import DQNAgent, DQNAgent_solo
 import src.utils.plotting_utils  as plotting_utils
 from src.utils.graph_utils import *
@@ -24,7 +24,7 @@ def main():
     print(f"Num episodes: {N_EPISODES}")
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(RandomizedCartpole(), id) for id in range(num_agents)]
+    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), i, "1a") for i in range(num_agents)]
 
     # Set neighbors
     neighbors = generate_neighbor_graph(chain_adj(num_agents), agents)
@@ -33,14 +33,14 @@ def main():
         agent.set_neighbors.remote(neighbors[agent])
 
     # Setup config
-    [agent.set_scheduler.remote((0, N_EPISODES-50), (0.2, 0.00)) for agent in agents]
+    [agent.set_scheduler.remote((0, N_EPISODES), (0.5, 0.0)) for agent in agents]
 
     # Train 
     print("Training...")
     train_ids = [agent.train.remote(N_EPISODES, diffusion=True) for agent in agents]
 
     # Save weights
-    [agent.save_weights.remote() for agent in agents]
+    # [agent.save_weights.remote() for agent in agents]
     rewards = ray.get(train_ids)
 
 

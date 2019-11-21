@@ -26,6 +26,7 @@ class ReplayMemory(object):
         if len(self.memory) < self.capacity:
             self.memory.append(None)
         self.memory[self.position] = Transition(*args)
+        if self.position+2 == self.capacity: print("LOOP")
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
@@ -37,7 +38,6 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
-
 
 class EpsilonScheduler(object):
     def __init__(self, t_range, eps_range):
@@ -55,7 +55,6 @@ class EpsilonScheduler(object):
             return self.eps_end
         return self.eps_start + \
             ((t-self.t_start)/self.t_duration) * (self.eps_range)
-
 
 class MLP_DQN(nn.Module):
     def __init__(self, input_dim, output_dim, n_units=24):
@@ -216,7 +215,7 @@ class DQNAgent_solo():
         return self.p_id
 
     def get_model(self):
-        return self.model
+        return dict(self.model.named_parameters())
 
     def save_weights(self):
         torch.save(self.model.state_dict(), "results/agent{}.pth".format(self.p_id))
@@ -228,6 +227,7 @@ class DQNAgent_solo():
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.learning_rate)
         self.memory.reset()
+        self.update_target()
 
     def update_target(self):
         self.target.load_state_dict(self.model.state_dict())
@@ -313,6 +313,7 @@ class DQNAgent_solo():
             if done:
                 break
 
+<<<<<<< HEAD
         self.returns.append(done)
         # Log periodically
         if self.logging and ep_id > 100 and ep_id % 50 == 0:
@@ -336,10 +337,10 @@ class DQNAgent_solo():
                 os.makedirs(results_dir)
             plt.savefig(results_dir + f"/agent_{self.p_id}_returns.png")
             plt.close()
+=======
+>>>>>>> 3a2fda456774b89158af253c017bb0217f459cdd
         return done
         
-        # endfor
-    
     def train(self, num_episodes, diffusion=False):
         returns = np.zeros(num_episodes)
         train_diffusions = np.zeros(num_episodes)
@@ -378,9 +379,8 @@ class DQNAgent_solo():
             if self.test_id == "2b" and self.p_id == 0 and ep_id > 1000:
                 self.load_model(self.temp_model)
                 self.load_target(self.temp_target)
-
+            
             if diffusion:
-
                 # Test 2a, agents 3 and 4 need to remove links between one another
                 if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 500 and ep_id < 1000:
                     self.offline = self.neighbors[3] if self.p_id == 2 else self.neighbors[2]
@@ -398,7 +398,7 @@ class DQNAgent_solo():
                 if self.test_id == "2b" and self.p_id != 0 and ep_id > 1000:
                     self.neighbors.append(self.offline[0])
                     self.offline = []
-
+                
                 train_diffusions[ep_id] = self.diffuse()
 
         return returns
@@ -408,10 +408,15 @@ class DQNAgent_solo():
 
         # Get weights for neighbors
         num_diffuses =  0
-
         neighbor_models = [n.get_model.remote() for n in self.neighbors]
+<<<<<<< HEAD
         ready, not_ready = ray.wait(neighbor_models, num_returns=len(neighbor_models),timeout=0.1)
 
+=======
+        ready, not_ready = ray.wait(neighbor_models, 
+                                    num_returns=len(self.neighbors),
+                                    timeout=0.1)
+>>>>>>> 3a2fda456774b89158af253c017bb0217f459cdd
         if (len(ready) == 0):
             return 
 
@@ -419,12 +424,11 @@ class DQNAgent_solo():
             neighbor_model = ray.get(w)
 
             # Get named parameter dicts
-            params1 = neighbor_model.named_parameters()
-            params2 = self.model.named_parameters()
+            params1 = neighbor_model
+            dict_params2 = self.get_model()
 
             # Average weights
-            dict_params2 = dict(params2)
-            for name1, param1 in params1:
+            for name1, param1 in params1.items():
                 if name1 in dict_params2:
                     dict_params2[name1].data.copy_(beta*param1.data + (1-beta)*dict_params2[name1].data)
 
@@ -441,18 +445,20 @@ class CentralizedRunner(object):
         self.to_torch = env.torch_state
         self.id = actor_id
         self.model = MLP_DQN(self.env.state_dim, self.env.nA)
+        self.target = MLP_DQN(self.env.state_dim, self.env.nA)
         self.lr = lr
         self.gamma = gamma
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr = self.lr)
 
-    def calc_gradient(self, params, batch_size, eps=1.0):
+    def calc_gradient(self, params, target_params, batch_size, eps=1.0):
         self.model.load_state_dict(params)
+        self.target.load_state_dict(target_params)
         batch = self.get_batch(batch_size, eps)
 
         q_vals = self.model.forward(batch["S"]) \
                                         .gather(1, batch["A"])
-        qp_vals = self.model.forward(batch["Sp"]) \
+        qp_vals = self.target.forward(batch["Sp"]) \
                         .detach().max(1)[0].unsqueeze(1)
         qp_vals[batch["D"]] = 0.
         target_vals = (qp_vals * self.gamma) + batch["R"]
@@ -467,7 +473,7 @@ class CentralizedRunner(object):
                 grads.append(p.grad.data.cpu().numpy())
             else:
                 grads.append(None)
-        return grads, batch["R"].numpy().reshape(-1), self.id
+        return grads, batch["R"].numpy().max(), self.id
 
     def get_action(self, t_state, epsilon):
         if npr.random() > epsilon:
@@ -480,7 +486,8 @@ class CentralizedRunner(object):
 
     def get_experience(self, params, num_exp, eps=1.0):
         self.model.load_state_dict(params)
-        return self.get_batch(num_exp, eps)
+        batch = self.get_batch(num_exp, eps)
+        return batch, batch["R"].numpy().reshape(-1), self.id
 
     def get_batch(self, num_steps, eps=1.0):
         S = []
@@ -489,24 +496,111 @@ class CentralizedRunner(object):
         R = []
         D = []
         
-        state = self.env.reset()
-        for step_id in range(num_steps):
-            t_state = self.to_torch(state)
-            t_action = self.get_action(t_state, eps)
-            next_state, reward, done, _ = self.env.step(t_action.item())
-            t_next_state = self.to_torch(next_state)
-            t_reward = torch.tensor(reward, dtype=torch.float).view(1, 1)
-            t_done = torch.tensor(done, dtype=torch.long).view(1,1)
-            state = np.copy(next_state)
+        going = True
+        while going:
+            state = self.env.reset()
+            for step_id in range(num_steps):
+                t_state = self.to_torch(state)
+                t_action = self.get_action(t_state, eps)
+                next_state, reward, done, _ = self.env.step(t_action.item())
+                t_next_state = self.to_torch(next_state)
+                t_reward = torch.tensor(reward, dtype=torch.float).view(1, 1)
+                t_done = torch.tensor(done, dtype=torch.long).view(1,1)
+                state = np.copy(next_state)
 
-            S.append(t_state)
-            A.append(t_action)
-            Sp.append(t_next_state)
-            R.append(t_reward)
-            D.append(t_done)
+                S.append(t_state)
+                A.append(t_action)
+                Sp.append(t_next_state)
+                R.append(t_reward)
+                D.append(t_done)
+                if len(S) == num_steps: 
+                    going = False
+                    break
+                if done: break
 
         return {"S": torch.cat(S), 
                 "A": torch.cat(A),
                 "Sp": torch.cat(Sp),
                 "R" : torch.cat(R),
                 "D" : torch.cat(D)}
+
+class DQNAgent_central():
+    def __init__(self, env, buffer_size=100000):
+        self.GAMMA = 0.98
+        self.EP_LENGTH = 50
+
+        self.memory_size = buffer_size
+        self.memory = ReplayMemory(self.memory_size)
+        self.batch_size = 64
+
+        self.env = env
+        self.state = self.env.reset()
+        self.to_torch = self.env.torch_state
+
+        self.learning_rate = 1e-4
+        self.reset_model()
+
+    def reset_model(self):
+        # resets model parameters
+        self.model = MLP_DQN(self.env.state_dim, self.env.nA)
+        self.target = MLP_DQN(self.env.state_dim, self.env.nA)
+        self.optimizer = optim.Adam(self.model.parameters(),
+                                    lr=self.learning_rate)
+        self.memory.reset()
+
+    def update_target(self):
+        self.target.load_state_dict(self.model.state_dict())
+
+    def add_sample(self, t_state, t_action, t_next_state, t_reward, t_done):
+        self.memory.push(t_state, t_action, t_next_state, t_reward, t_done)
+
+    def run_episode(self):
+        state = self.env.reset()
+        self.model.eval()
+        for step_id in range(self.EP_LENGTH):
+            t_state = self.to_torch(state)
+            t_action = self.model.forward(t_state).argmax().view(1, 1)
+            next_state, reward, done, _ = self.env.step(t_action.item())
+            state = np.copy(next_state)
+            if done:
+                break
+        return done
+
+    def add_batch(self, batch):
+        S = batch["S"].unsqueeze(1)
+        A = batch["A"].unsqueeze(1)
+        Sp = batch["Sp"].unsqueeze(1)
+        R = batch["R"].unsqueeze(1)
+        D = batch["D"].unsqueeze(1)
+        for i in range(batch["D"].shape[0]):
+            self.add_sample(S[i],
+                            A[i],
+                            Sp[i],
+                            R[i],
+                            D[i])
+
+    def optimize(self):
+        if len(self.memory) < self.batch_size:
+            return 
+        transitions = self.memory.sample(self.batch_size)
+        batch = Transition(*zip(*transitions))
+
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
+        next_state_batch = torch.cat(batch.next_state)
+        done_batch = torch.cat(batch.done)
+
+        state_action_values = self.model.forward(state_batch) \
+                                        .gather(1, action_batch) 
+
+        next_state_values = self.target.forward(next_state_batch) \
+                        .detach().max(1)[0].unsqueeze(1)
+        next_state_values[done_batch] = 0.
+        expected_state_action_values = (next_state_values * self.GAMMA) + reward_batch
+
+        loss = F.mse_loss(state_action_values, expected_state_action_values)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()

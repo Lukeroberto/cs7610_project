@@ -5,6 +5,7 @@ import numpy.random as npr
 import matplotlib.pyplot as plt
 import sys
 import torch
+from tqdm import tqdm as tqdm
 
 from src.utils.environments import *
 from src.utils.dqn import CentralizedRunner, MLP_DQN
@@ -23,6 +24,8 @@ def main():
     # Start ray
     ray.init(logging_level="ERROR")
 
+
+    # i have gotten it to work for 20k ep, 10 workers
     N_EPISODES = int(sys.argv[1])
     num_agents = num_cpus if (sys.argv[2] == "max") else int(sys.argv[2])
 
@@ -37,26 +40,37 @@ def main():
 
     env = ContinuousGridWorld()
     model = MLP_DQN(env.state_dim, env.nA)
-    optimizer = torch.optim.Adam(model.parameters(),lr = lr)
-    batch_size = 50
+    target = MLP_DQN(env.state_dim, env.nA)
+    target.load_state_dict(model.state_dict())
+    TARGET_UPDATE_INTERVAL = 10
 
-    obj_ids = [agent.calc_gradient.remote(dict(model.named_parameters()), batch_size) for agent in agents]
+    optimizer = torch.optim.Adam(model.parameters(),lr = lr)
+    batch_size = 64
+
+    obj_ids = [agent.calc_gradient.remote(dict(model.named_parameters()),
+                                            dict(target.named_parameters()),
+                                             batch_size) for agent in agents]
     REWARDS = []
-    N_ITERS = 10000
-    for i in range(N_ITERS):
+    for i in tqdm(range(N_EPISODES)):
         ready, not_ready = ray.wait(obj_ids, timeout=1)
         if len(ready) == 0: continue
+        tmp = 0
         for r in ready:
-            grads, rewards, actor_id = ray.get(r)
+            grads, reward, actor_id = ray.get(r)
+            tmp+=reward
             apply_gradient(model, optimizer, grads)
-            eps = 1.0#0.5*(1-i/N_ITERS)
-            not_ready.append(agents[actor_id].calc_gradient.remote(dict(model.named_parameters()), batch_size))
-            REWARDS.extend(list(rewards))
+            eps = 0.5*(1-i/N_EPISODES)
+            not_ready.append(agents[actor_id].calc_gradient.remote(dict(model.named_parameters()),
+                                                            dict(target.named_parameters()), 
+                                                            batch_size, eps))
             obj_ids = not_ready
             continue
-
+        REWARDS.append(tmp/len(ready))
+        if i % TARGET_UPDATE_INTERVAL == 0:
+            target.load_state_dict(model.state_dict())
+        
     plt.figure()
-    plt.plot(np.convolve(REWARDS, np.ones(5000)/5000.,mode='valid'))
+    plt.plot(np.convolve(REWARDS, np.ones(200)/200.,mode='valid'))
     plt.show()
 
 
