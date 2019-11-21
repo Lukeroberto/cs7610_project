@@ -26,6 +26,7 @@ class ReplayMemory(object):
         if len(self.memory) < self.capacity:
             self.memory.append(None)
         self.memory[self.position] = Transition(*args)
+        if self.position+2 == self.capacity: print("LOOP")
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
@@ -37,7 +38,6 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
-
 
 class EpsilonScheduler(object):
     def __init__(self, t_range, eps_range):
@@ -55,7 +55,6 @@ class EpsilonScheduler(object):
             return self.eps_end
         return self.eps_start + \
             ((t-self.t_start)/self.t_duration) * (self.eps_range)
-
 
 class MLP_DQN(nn.Module):
     def __init__(self, input_dim, output_dim, n_units=24):
@@ -175,7 +174,7 @@ class DQNAgent():
 
         self.model.load_state_dict(dict_params)
 
-# @ray.remote
+@ray.remote
 class DQNAgent_solo():
     def __init__(self, env, id, test_id, opt=True, logging=True):
         self.p_id = id 
@@ -446,7 +445,8 @@ class CentralizedRunner(object):
 
     def get_experience(self, params, num_exp, eps=1.0):
         self.model.load_state_dict(params)
-        return self.get_batch(num_exp, eps)
+        batch = self.get_batch(num_exp, eps)
+        return batch, batch["R"].numpy().reshape(-1), self.id
 
     def get_batch(self, num_steps, eps=1.0):
         S = []
@@ -470,9 +470,91 @@ class CentralizedRunner(object):
             Sp.append(t_next_state)
             R.append(t_reward)
             D.append(t_done)
+            if done: break
 
         return {"S": torch.cat(S), 
                 "A": torch.cat(A),
                 "Sp": torch.cat(Sp),
                 "R" : torch.cat(R),
                 "D" : torch.cat(D)}
+
+class DQNAgent_central():
+    def __init__(self, env, buffer_size=100000):
+        self.GAMMA = 0.98
+        self.EP_LENGTH = 50
+
+        self.memory_size = buffer_size
+        self.memory = ReplayMemory(self.memory_size)
+        self.batch_size = 64
+
+        self.env = env
+        self.state = self.env.reset()
+        self.to_torch = self.env.torch_state
+
+        self.learning_rate = 1e-4
+        self.reset_model()
+
+    def reset_model(self):
+        # resets model parameters
+        self.model = MLP_DQN(self.env.state_dim, self.env.nA)
+        self.target = MLP_DQN(self.env.state_dim, self.env.nA)
+        self.optimizer = optim.Adam(self.model.parameters(),
+                                    lr=self.learning_rate)
+        self.memory.reset()
+
+    def update_target(self):
+        self.target.load_state_dict(self.model.state_dict())
+
+    def add_sample(self, t_state, t_action, t_next_state, t_reward, t_done):
+        self.memory.push(t_state, t_action, t_next_state, t_reward, t_done)
+
+    def run_episode(self):
+        state = self.env.reset()
+        self.model.eval()
+        for step_id in range(self.EP_LENGTH):
+            t_state = self.to_torch(state)
+            t_action = self.model.forward(t_state).argmax().view(1, 1)
+            next_state, reward, done, _ = self.env.step(t_action.item())
+            state = np.copy(next_state)
+            if done:
+                break
+        return done
+
+    def add_batch(self, batch):
+        S = batch["S"].unsqueeze(1)
+        A = batch["A"].unsqueeze(1)
+        Sp = batch["Sp"].unsqueeze(1)
+        R = batch["R"].unsqueeze(1)
+        D = batch["D"].unsqueeze(1)
+        for i in range(batch["D"].shape[0]):
+            self.add_sample(S[i],
+                            A[i],
+                            Sp[i],
+                            R[i],
+                            D[i])
+
+    def optimize(self):
+        if len(self.memory) < self.batch_size:
+            return 
+        transitions = self.memory.sample(self.batch_size)
+        batch = Transition(*zip(*transitions))
+
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
+        next_state_batch = torch.cat(batch.next_state)
+        done_batch = torch.cat(batch.done)
+
+        state_action_values = self.model.forward(state_batch) \
+                                        .gather(1, action_batch) 
+
+        next_state_values = self.target.forward(next_state_batch) \
+                        .detach().max(1)[0].unsqueeze(1)
+        next_state_values[done_batch] = 0.
+        expected_state_action_values = (next_state_values * self.GAMMA) + reward_batch
+
+        loss = F.mse_loss(state_action_values, expected_state_action_values)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
