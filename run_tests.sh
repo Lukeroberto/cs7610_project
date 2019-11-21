@@ -2,14 +2,18 @@
 
 # Run several test
 
-# Test 1: Fully Connected
+# 1: Normal training
 
-# Test 2: Network Partitions (2 Types)
-# Test 2a: Loose partition
+# 1a: Fully connected network
+# 1b: Spoke network
+# 1c: Chain network
 
-# Test 2b: Extreme partition
+# 2: Network partitions
 
-# Test 3: Chain
-# Test 3a: Vanilla Chain
+# 2a: Triangle network
+# 2b: Spoke network
 
-# Test 3b: Chain with only 1 agent/ no learning anywhere
+# 3: Learning through diffusion only
+
+# 3a: Spoke network
+# 3b: Chain network
