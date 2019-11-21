@@ -8,13 +8,13 @@ echo "Starting Test suite 1..."
 
 # 1a: Fully connected network
 echo "Test 1a"
-# python -m src.main -t "1a" -l $NUM_EPISODES 
+python -m src.main -t "1a" -l $NUM_EPISODES 
 # 1b: Spoke network
 echo "Test 1b"
-# python -m src.main -t "1b" -l $NUM_EPISODES 
+python -m src.main -t "1b" -l $NUM_EPISODES 
 # 1c: Chain network
 echo "Test 1c"
-# python -m src.main -t "1c" -l $NUM_EPISODES 
+python -m src.main -t "1c" -l $NUM_EPISODES 
 
 echo "Test suite 1 completed"
 
@@ -23,10 +23,10 @@ echo "Starting Test suite 2..."
 
 # 2a: Triangle network
 echo "Test 2a"
-# python -m src.main -t "2a" -l $NUM_EPISODES 
+python -m src.main -t "2a" -l $NUM_EPISODES 
 # 2b: Spoke network
 echo "Test 2b"
-# python -m src.main -t "2b" -l $NUM_EPISODES 
+python -m src.main -t "2b" -l $NUM_EPISODES 
 
 echo "Test suite 2 completed"
 

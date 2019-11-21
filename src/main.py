@@ -46,9 +46,9 @@ def test_1a(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
-
-    return ray.get(train_ids)
+    train(agents, NUM_EPISODES)
+    
+    return ray.get([agent.get_returns.remote() for agent in agents])
 
 
 
@@ -70,9 +70,9 @@ def test_1b(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
-
-    return ray.get(train_ids)
+    train(agents, NUM_EPISODES)
+    
+    return ray.get([agent.get_returns.remote() for agent in agents])
 
 def test_1c(args):
     NUM_EPISODES = int(args.length)
@@ -92,9 +92,9 @@ def test_1c(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
-
-    return ray.get(train_ids)
+    train(agents, NUM_EPISODES)
+    
+    return ray.get([agent.get_returns.remote() for agent in agents])
 
 def test_2a(args):
     NUM_EPISODES = int(args.length)
@@ -114,9 +114,9 @@ def test_2a(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
-
-    return ray.get(train_ids)
+    train(agents, NUM_EPISODES)
+    
+    return ray.get([agent.get_returns.remote() for agent in agents])
 
 def test_2b(args):
     NUM_EPISODES = int(args.length)
@@ -136,9 +136,9 @@ def test_2b(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
-
-    return ray.get(train_ids)
+    train(agents, NUM_EPISODES)
+    
+    return ray.get([agent.get_returns.remote() for agent in agents])
 
 def test_3a(args):
     NUM_EPISODES = int(args.length)
@@ -161,9 +161,9 @@ def test_3a(args):
     agents[0].load_torch.remote("results/agent1.pth")
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
-
-    return ray.get(train_ids)
+    train(agents, NUM_EPISODES)
+    
+    return ray.get([agent.get_returns.remote() for agent in agents])
 
 def test_3b(args):
     NUM_EPISODES = int(args.length)
@@ -186,9 +186,10 @@ def test_3b(args):
     agents[0].load_torch.remote("results/agent1.pth")
 
     # Train 
-    train_ids = [agent.train.remote(NUM_EPISODES, diffusion=True) for agent in agents]
+    train(agents, NUM_EPISODES)
+    
+    return ray.get([agent.get_returns.remote() for agent in agents])
 
-    return ray.get(train_ids)
 
 test_dict = {
     "1a": test_1a,
@@ -199,6 +200,15 @@ test_dict = {
     "3a": test_3a,
     "3b": test_3b,
 }
+
+def train(agents, num_episodes):
+    promises = []
+    for ep_id in range(num_episodes):
+        for agent in agents:
+            promises.append(agent.run_episode.remote(ep_id))
+            agent.diffuse.remote()
+    
+    return promises
 
 if __name__ == "__main__":
     main()

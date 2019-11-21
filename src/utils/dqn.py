@@ -175,7 +175,7 @@ class DQNAgent():
 
         self.model.load_state_dict(dict_params)
 
-# @ray.remote
+@ray.remote
 class DQNAgent_solo():
     def __init__(self, env, id, test_id, opt=True, logging=True):
         self.p_id = id 
@@ -205,6 +205,9 @@ class DQNAgent_solo():
 
         self.temp_model = None
         self.temp_target = None
+
+        self.returns =  []
+        self.train_diffusions = []
 
     def set_neighbors(self, neighbors):
         self.neighbors = neighbors
@@ -279,6 +282,12 @@ class DQNAgent_solo():
         loss.backward()
         self.optimizer.step()
 
+    def get_returns(self):
+        return np.array(self.returns)
+    
+    def get_diffusion_counts(self):
+        return np.array(self.train_diffusions)
+
     def run_episode(self, ep_id):
         EPS = self.scheduler(ep_id)
 
@@ -303,6 +312,30 @@ class DQNAgent_solo():
 
             if done:
                 break
+
+        self.returns.append(done)
+        # Log periodically
+        if self.logging and ep_id > 100 and ep_id % 50 == 0:
+            returns = np.array(self.returns)
+            train_diffusions = np.array(self.train_diffusions).cumsum()
+            fig, ax1 = plt.subplots()
+
+            ax1.set_xlabel('Episode')
+            ax1.set_ylabel('Success Rate [%]', color='b')
+            ax1.plot(smooth(returns[:ep_id], 100), color='b')
+            ax1.tick_params(axis='y', colors='b')
+
+            ax2 = ax1.twinx()
+            ax2.set_ylabel('Cumulative Diffusions', color='r')
+            ax2.plot(train_diffusions[:ep_id], color='r')
+            ax2.tick_params(axis='y', colors='r')
+            fig.tight_layout() 
+
+            results_dir = f"results/test_{self.test_id}/" 
+            if not os.path.isdir(results_dir):
+                os.makedirs(results_dir)
+            plt.savefig(results_dir + f"/agent_{self.p_id}_returns.png")
+            plt.close()
         return done
         
         # endfor
@@ -377,7 +410,7 @@ class DQNAgent_solo():
         num_diffuses =  0
 
         neighbor_models = [n.get_model.remote() for n in self.neighbors]
-        ready, not_ready = ray.wait(neighbor_models, timeout=0.5)
+        ready, not_ready = ray.wait(neighbor_models, num_returns=len(neighbor_models),timeout=0.1)
 
         if (len(ready) == 0):
             return 
@@ -397,7 +430,8 @@ class DQNAgent_solo():
 
             # Set my parameters to average
             self.model.load_state_dict(dict_params2)
-        return len(ready)
+        
+        self.train_diffusions.append(len(ready))
 
 @ray.remote
 class CentralizedRunner(object):
