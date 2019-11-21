@@ -8,7 +8,7 @@ from tqdm import tqdm
 env = ContinuousGridWorld()
 agent = DQNAgent_solo(env, 1)
 
-N_EPISODES = 3000
+N_EPISODES = 2000
 agent.set_scheduler((0, N_EPISODES), (0.5, 0.01))
 
 RETURNS = np.zeros(N_EPISODES)
