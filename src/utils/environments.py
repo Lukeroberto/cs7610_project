@@ -50,7 +50,6 @@ class ContinuousGridWorld():
 
 	def step(self, action):
 		delta = self._steps[action]
-		
 		self.state = np.clip(self.state + delta + np.random.normal(scale=self.n_sigma,size=self.state_dim), 
 							self.bounds[0], 
 							self.bounds[1])
