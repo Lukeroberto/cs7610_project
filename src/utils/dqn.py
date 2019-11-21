@@ -175,8 +175,9 @@ class DQNAgent():
 
 @ray.remote
 class DQNAgent_solo():
-    def __init__(self, env, id, logging=True):
+    def __init__(self, env, id, test_id, logging=True):
         self.p_id = id 
+        self.test_id = test_id
 
         self.GAMMA = 0.98
         self.EP_LENGTH = 50
@@ -293,7 +294,7 @@ class DQNAgent_solo():
                 plt.figure()
                 plt.plot(smooth(returns[:ep_id], 100))
 
-                results_dir = f"results/agent_{self.p_id}" 
+                results_dir = f"results/test_{self.test_id}/agent_{self.p_id}" 
                 if not os.path.isdir(results_dir):
                     os.makedirs(results_dir)
                 plt.savefig(results_dir + "/smoothed_returns.png")
