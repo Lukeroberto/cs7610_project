@@ -58,11 +58,13 @@ class EpsilonScheduler(object):
 
 
 class MLP_DQN(nn.Module):
-    def __init__(self, input_dim, output_dim, n_units=64):
+    def __init__(self, input_dim, output_dim, n_units=24):
         super(MLP_DQN, self).__init__()
 
         self.model = nn.Sequential(
             nn.Linear(input_dim, n_units),
+            nn.ReLU(True),
+            nn.Linear(n_units, n_units),
             nn.ReLU(True),
             nn.Linear(n_units, n_units),
             nn.ReLU(True),
@@ -181,7 +183,7 @@ class DQNAgent_solo():
         self.GAMMA = 0.98
         self.EP_LENGTH = 50
 
-        self.memory_size = 50000
+        self.memory_size = 100000
         self.target_update_interval = 30
         self.memory = ReplayMemory(self.memory_size)
         self.scheduler = EpsilonScheduler((0, 1e10), (1.0, 1.0))
