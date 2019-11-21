@@ -4,9 +4,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import os
 from collections import namedtuple
+import matplotlib.pyplot as plt
 import random
 import ray
+
+from src.utils.plotting_utils import *
 
 Transition = namedtuple(
     'Transition', ('state', 'action', 'next_state', 'reward'))
@@ -171,7 +175,7 @@ class DQNAgent():
 
 @ray.remote
 class DQNAgent_solo():
-    def __init__(self, env, id, optimize_rate=1):
+    def __init__(self, env, id, logging=True):
         self.p_id = id 
 
         self.GAMMA = 0.98
@@ -183,7 +187,7 @@ class DQNAgent_solo():
         self.scheduler = EpsilonScheduler((0, 1e10), (1.0, 1.0))
         self.batch_size = 64
         self.step_counter = 0
-        self.opt_freq = optimize_rate
+        self.opt_freq = 1
 
         self.env = env
         self.state = self.env.reset()
@@ -191,6 +195,8 @@ class DQNAgent_solo():
 
         self.learning_rate = 1e-4
         self.reset_model()
+
+        self.logging = logging
 
     def set_neighbors(self, neighbors):
         self.neighbors = neighbors
@@ -282,6 +288,16 @@ class DQNAgent_solo():
         returns = np.zeros(num_episodes)
         for ep_id in range(num_episodes):
             returns[ep_id] = self.run_episode(ep_id)
+
+            if self.logging and ep_id > 100 and ep_id % 50 == 0:
+                plt.figure()
+                plt.plot(smooth(returns[:ep_id], 100))
+
+                results_dir = f"results/agent_{self.p_id}" 
+                if not os.path.isdir(results_dir):
+                    os.makedirs(results_dir)
+                plt.savefig(results_dir + "/smoothed_returns.png")
+                plt.close()
 
             if diffusion:
                 self.diffuse()

@@ -23,20 +23,20 @@ def main():
     print("Num episodes: " , N_EPISODES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), 1) for _ in range(num_agents)]
+    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), i) for i in range(num_agents)]
 
     # Setup config
-    [agent.set_scheduler.remote((0, N_EPISODES-50), (0.2, 0.00)) for agent in agents]
+    [agent.set_scheduler.remote((0, N_EPISODES-50), (1.0, 0.01)) for agent in agents]
 
     # Train 
     train_ids = [agent.train.remote(N_EPISODES, diffusion=False) for agent in agents]
 
     rewards = ray.get(train_ids)
 
-    plotting_utils.plot_workers(rewards)
-    plt.savefig("results/plots/workers.png")
-    plotting_utils.plot_workers_aggregate(rewards)
-    plt.savefig("results/plots/workers_agg.png")
+    plotting_utils.plot_workers(rewards, smoothing=200)
+    plt.savefig("results/aggregate/workers.png")
+    plotting_utils.plot_workers_aggregate(rewards, smoothing=200)
+    plt.savefig("results/aggregate/workers_agg.png")
 
     plt.show()
 
