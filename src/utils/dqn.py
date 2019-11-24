@@ -176,9 +176,11 @@ class DQNAgent():
 
 @ray.remote
 class DQNAgent_solo():
-    def __init__(self, env, id, test_id, opt=True, logging=True):
-        self.p_id = id 
-        self.test_id = test_id
+    def __init__(self, env, ids, opt=True, logging=True):
+        
+        self.p_id = ids[0]
+        self.test_id = ids[1]
+        self.trial_id = ids[2]
 
         self.GAMMA = 0.98
         self.EP_LENGTH = 50
@@ -331,7 +333,7 @@ class DQNAgent_solo():
             ax2.tick_params(axis='y', colors='r')
             fig.tight_layout() 
 
-            results_dir = f"results/test_{self.test_id}/" 
+            results_dir = f"results/trial_{self.trial_id}/test_{self.test_id}/" 
             if not os.path.isdir(results_dir):
                 os.makedirs(results_dir)
             plt.savefig(results_dir + f"/agent_{self.p_id}_returns.png")
@@ -361,7 +363,7 @@ class DQNAgent_solo():
                 ax2.tick_params(axis='y', colors='r')
                 fig.tight_layout() 
 
-                results_dir = f"results/test_{self.test_id}/" 
+                results_dir = f"results/trial_{self.trial_id}/test_{self.test_id}/" 
                 if not os.path.isdir(results_dir):
                     os.makedirs(results_dir)
                 plt.savefig(results_dir + f"/agent_{self.p_id}_returns.png")
