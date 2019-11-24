@@ -383,31 +383,31 @@ class DQNAgent_solo():
                 plt.close()
 
             # Test 2b, if center agent, stop learning                
-            if self.test_id == "2b" and self.p_id == 0 and ep_id > 500 and ep_id < 1000:
+            if self.test_id == "2b" and self.p_id == 0 and ep_id > 200 and ep_id < 1500:
                 self.temp_model = self.model
                 self.temp_target = self.target
                 returns[ep_id] = -1
 
-            if self.test_id == "2b" and self.p_id == 0 and ep_id > 1000:
+            if self.test_id == "2b" and self.p_id == 0 and ep_id > 1500:
                 self.load_model(self.temp_model)
                 self.load_target(self.temp_target)
             
             if diffusion:
                 # Test 2a, agents 3 and 4 need to remove links between one another
-                if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 500 and ep_id < 1000:
+                if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 200 and ep_id < 1500:
                     self.offline = self.neighbors[3] if self.p_id == 2 else self.neighbors[2]
                     self.neighbors = self.neighbors.remove(self.offline[0])
                 # Test 2a, add edge back
-                if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 1000:
+                if self.test_id == "2b" and self.p_id in [2,3] and ep_id > 1500:
                     self.neighbors.append(self.offline[0])
                     self.offline = []
                 
                 # Test 2b, if on spoke, stop diffusing with center
-                if self.test_id == "2b" and self.p_id != 0 and ep_id > 500 and ep_id < 1000:
+                if self.test_id == "2b" and self.p_id != 0 and ep_id > 200 and ep_id < 1500:
                     self.offline = self.neighbors[0]
                     self.neighbors = self.neighbors[1:]
                 # Test 2b, add center back
-                if self.test_id == "2b" and self.p_id != 0 and ep_id > 1000:
+                if self.test_id == "2b" and self.p_id != 0 and ep_id > 1500:
                     self.neighbors.append(self.offline[0])
                     self.offline = []
                 
