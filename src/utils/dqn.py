@@ -177,7 +177,6 @@ class DQNAgent():
 @ray.remote
 class DQNAgent_solo():
     def __init__(self, env, ids, opt=True, logging=True):
-        
         self.p_id = ids[0]
         self.test_id = ids[1]
         self.trial_id = ids[2]
@@ -218,6 +217,9 @@ class DQNAgent_solo():
 
     def get_model(self):
         return dict(self.model.named_parameters())
+
+    def get_model_and_avg_returns(self):
+        return self.get_model(), self.get_avg_returns()
 
     def save_weights(self):
         torch.save(self.model.state_dict(), "results/agent{}.pth".format(self.p_id))
@@ -287,6 +289,12 @@ class DQNAgent_solo():
     def get_returns(self):
         return np.array(self.returns)
     
+    def get_avg_returns(self):
+        if len(self.returns) == 0:
+            return 0
+
+        return np.array(self.returns)[-50:].mean()
+    
     def get_diffusion_counts(self):
         return np.array(self.train_diffusions)
 
@@ -316,6 +324,11 @@ class DQNAgent_solo():
                 break
 
         self.returns.append(done)
+
+        # Early stopping, if agent doing well for a while, stop optimizing
+        if self.get_avg_returns() > 0.95:
+            self.opt = False
+
         # Log periodically
         if self.logging and ep_id > 100 and ep_id % 50 == 0:
             returns = np.array(self.returns)
@@ -407,7 +420,7 @@ class DQNAgent_solo():
 
         # Get weights for neighbors
         num_diffuses =  0
-        neighbor_models = [n.get_model.remote() for n in self.neighbors]
+        neighbor_models = [n.get_model_and_avg_returns.remote() for n in self.neighbors]
         ready, not_ready = ray.wait(neighbor_models, 
                                     num_returns=len(self.neighbors),
                                     timeout=0.1)
@@ -415,7 +428,11 @@ class DQNAgent_solo():
             return 
 
         for w in ready:
-            neighbor_model = ray.get(w)
+            neighbor_model, avg_return = ray.get(w)
+
+            # Dont diffuse if your avg returns are worse than mine
+            if "3" in self.test_id and avg_return < self.get_avg_returns():
+                continue
 
             # Get named parameter dicts
             params1 = neighbor_model
