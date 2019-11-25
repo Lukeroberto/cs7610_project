@@ -43,11 +43,11 @@ def main():
             if len(ready) == 0: continue
             tmp_reward = 0
             for r in ready:
-                batch, rewards, actor_id = ray.get(r)
+                batch, reward, actor_id = ray.get(r)
                 AGENT.add_batch(batch)
                 eps = max(0.5*(1-i/N_EPISODES),0)
                 not_ready.append(runners[actor_id].get_experience.remote(dict(AGENT.model.named_parameters()), BATCH_SIZE, eps))
-                tmp_reward += sum(rewards)
+                tmp_reward += reward
                 obj_ids = not_ready
                 continue
         REWARDS.append(tmp_reward/len(ready))
