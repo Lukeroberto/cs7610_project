@@ -173,7 +173,7 @@ class DQNAgent():
 
         self.model.load_state_dict(dict_params)
 
-@ray.remote
+# @ray.remote
 class DQNAgent_solo():
     def __init__(self, env, ids, opt=True, logging=True):
         self.p_id = ids[0]
@@ -322,9 +322,9 @@ class DQNAgent_solo():
         self.returns.append(done)
 
         # Early stopping, if agent doing well for a while, stop optimizing
-        if self.get_avg_returns() > 0.75:
-            self.opt = False
-            self.diffuse = False
+        # if self.get_avg_returns() > 0.75:
+        #     self.opt = False
+        #     self.diffuse = False
 
         # Log periodically
         if self.logging and ep_id > 100 and ep_id % 50 == 0:
@@ -415,7 +415,7 @@ class DQNAgent_solo():
 
     def diffuse(self, ep_id):
 
-        if !self.diffuse:
+        if not self.diffuse:
             self.train_diffusions.append(0)
             return 
 

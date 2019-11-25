@@ -74,7 +74,6 @@ def main():
     plt.show()
 
 
-
     # plotting_utils.plot_workers(rewards, smoothing=200)
     # plt.savefig("results/aggregate/workers.png")
     # plotting_utils.plot_workers_aggregate(rewards, smoothing=200)

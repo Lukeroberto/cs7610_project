@@ -29,7 +29,7 @@ def main():
     [agent.set_scheduler.remote((0, N_EPISODES), (0.5, 0.01)) for agent in agents]
 
     # Train 
-    train_ids = [agent.train.remote(N_EPISODES, diffusion=False) for agent in agents]
+    train_ids = [agent.train.remote(N_EPISODES, diffusion=True) for agent in agents]
 
     rewards = ray.get(train_ids)
 
