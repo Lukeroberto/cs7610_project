@@ -19,9 +19,9 @@ do
     # 2: Network partitions
 
     # 2a: Triangle network
-    python -m src.main -n $TRIAL -t "2a" -l $NUM_EPISODES 
+    # python -m src.main -n $TRIAL -t "2a" -l $NUM_EPISODES 
     # 2b: Spoke network
-    python -m src.main -n $TRIAL -t "2b" -l $NUM_EPISODES 
+    # python -m src.main -n $TRIAL -t "2b" -l $NUM_EPISODES 
 
 
     # 3: Learning through diffusion only

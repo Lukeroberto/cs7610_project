@@ -326,8 +326,9 @@ class DQNAgent_solo():
         self.returns.append(done)
 
         # Early stopping, if agent doing well for a while, stop optimizing
-        if self.get_avg_returns() > 0.95:
+        if self.get_avg_returns() > 0.75:
             self.opt = False
+            self.diffuse = False
 
         # Log periodically
         if self.logging and ep_id > 100 and ep_id % 50 == 0:
@@ -340,11 +341,12 @@ class DQNAgent_solo():
             ax1.plot(smooth(returns[:ep_id], 100), color='b')
             ax1.tick_params(axis='y', colors='b')
 
-            ax2 = ax1.twinx()
-            ax2.set_ylabel('Cumulative Diffusions', color='r')
-            ax2.plot(train_diffusions[:ep_id], color='r')
-            ax2.tick_params(axis='y', colors='r')
-            fig.tight_layout() 
+            if len(train_diffusions) > 0:
+                ax2 = ax1.twinx()
+                ax2.set_ylabel('Cumulative Diffusions', color='r')
+                ax2.plot(smooth(train_diffusions[:ep_id], 100), color='r')
+                ax2.tick_params(axis='y', colors='r')
+                fig.tight_layout() 
 
             results_dir = f"results/trial_{self.trial_id}/test_{self.test_id}/" 
             if not os.path.isdir(results_dir):
@@ -415,16 +417,21 @@ class DQNAgent_solo():
 
         return returns
 
-    def diffuse(self):
+    def diffuse(self, ep_id):
+
+        if !self.diffuse:
+            self.train_diffusions.append(0)
+            return 
+
         beta = 0.5 #The interpolation parameter    
 
         # Get weights for neighbors
-        num_diffuses =  0
         neighbor_models = [n.get_model_and_avg_returns.remote() for n in self.neighbors]
         ready, not_ready = ray.wait(neighbor_models, 
                                     num_returns=len(self.neighbors),
                                     timeout=0.1)
         if (len(ready) == 0):
+            self.train_diffusions.append(0)
             return 
 
         for w in ready:

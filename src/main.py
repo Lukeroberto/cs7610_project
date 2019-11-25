@@ -19,7 +19,7 @@ def main():
     p = test_parser()
     args = p.parse_args()
 
-    rewards = test_dict[args.test](args)
+    rewards, diffusions = test_dict[args.test](args)
     
     plot_workers(rewards, smoothing=200)
     plt.savefig(f"results/trial_{args.trial}/test_{args.test}/workers.png")
@@ -27,6 +27,7 @@ def main():
     plt.savefig(f"results/trial_{args.trial}/test_{args.test}/workers_agg.png")
 
     np.save(f"results/trial_{args.trial}/test_{args.test}/worker_rewards.npy", rewards)
+    np.save(f"results/trial_{args.trial}/test_{args.test}/worker_diffusions.npy", diffusions)
 
 
 
@@ -49,7 +50,10 @@ def test_1a(args):
     # Train 
     train(agents, NUM_EPISODES)
     
-    return ray.get([agent.get_returns.remote() for agent in agents])
+    rewards = ray.get([agent.get_returns.remote() for agent in agents])
+    diffusions = ray.get([agent.get_diffusion_counts.remote() for agent in agents])
+
+    return rewards, diffusions
 
 
 
@@ -73,7 +77,10 @@ def test_1b(args):
     # Train 
     train(agents, NUM_EPISODES)
     
-    return ray.get([agent.get_returns.remote() for agent in agents])
+    rewards = ray.get([agent.get_returns.remote() for agent in agents])
+    diffusions = ray.get([agent.get_diffusion_counts.remote() for agent in agents])
+
+    return rewards, diffusions
 
 def test_1c(args):
     NUM_EPISODES = int(args.length)
@@ -95,7 +102,10 @@ def test_1c(args):
     # Train 
     train(agents, NUM_EPISODES)
     
-    return ray.get([agent.get_returns.remote() for agent in agents])
+    rewards = ray.get([agent.get_returns.remote() for agent in agents])
+    diffusions = ray.get([agent.get_diffusion_counts.remote() for agent in agents])
+
+    return rewards, diffusions
 
 def test_2a(args):
     NUM_EPISODES = int(args.length)
@@ -117,7 +127,10 @@ def test_2a(args):
     # Train 
     train(agents, NUM_EPISODES)
     
-    return ray.get([agent.get_returns.remote() for agent in agents])
+    rewards = ray.get([agent.get_returns.remote() for agent in agents])
+    diffusions = ray.get([agent.get_diffusion_counts.remote() for agent in agents])
+
+    return rewards, diffusions
 
 def test_2b(args):
     NUM_EPISODES = int(args.length)
@@ -139,7 +152,10 @@ def test_2b(args):
     # Train 
     train(agents, NUM_EPISODES)
     
-    return ray.get([agent.get_returns.remote() for agent in agents])
+    rewards = ray.get([agent.get_returns.remote() for agent in agents])
+    diffusions = ray.get([agent.get_diffusion_counts.remote() for agent in agents])
+
+    return rewards, diffusions
 
 def test_3a(args):
     NUM_EPISODES = int(args.length)
@@ -164,7 +180,10 @@ def test_3a(args):
     # Train 
     train(agents, NUM_EPISODES)
     
-    return ray.get([agent.get_returns.remote() for agent in agents])
+    rewards = ray.get([agent.get_returns.remote() for agent in agents])
+    diffusions = ray.get([agent.get_diffusion_counts.remote() for agent in agents])
+
+    return rewards, diffusions
 
 def test_3b(args):
     NUM_EPISODES = int(args.length)
@@ -189,7 +208,10 @@ def test_3b(args):
     # Train 
     train(agents, NUM_EPISODES)
     
-    return ray.get([agent.get_returns.remote() for agent in agents])
+    rewards = ray.get([agent.get_returns.remote() for agent in agents])
+    diffusions = ray.get([agent.get_diffusion_counts.remote() for agent in agents])
+
+    return rewards, diffusions
 
 
 test_dict = {
@@ -207,7 +229,7 @@ def train(agents, num_episodes):
     for ep_id in range(num_episodes):
         for agent in agents:
             promises.append(agent.run_episode.remote(ep_id))
-            agent.diffuse.remote()
+            agent.diffuse.remote(ep_id)
     
     return promises
 
