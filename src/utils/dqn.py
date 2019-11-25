@@ -188,8 +188,6 @@ class DQNAgent_solo():
         self.memory = ReplayMemory(self.memory_size)
         self.scheduler = EpsilonScheduler((0, 1e10), (1.0, 1.0))
         self.batch_size = 64
-        self.step_counter = 0
-        self.opt_freq = 1
 
         self.env = env
         self.state = self.env.reset()
@@ -313,14 +311,13 @@ class DQNAgent_solo():
             self.add_sample(t_state, t_action, t_next_state, t_reward, t_done)
             state = np.copy(next_state)
 
-            self.step_counter += 1
-            if self.step_counter % self.opt_freq == 0:
-                if self.opt:
-                    self.optimize()
-                self.step_counter = 0
-
             if done:
                 break
+        for _ in range(step_id+1):
+            if self.opt:
+                self.optimize()
+        if ep_id % self.target_update_interval == 0:
+            self.update_target()
 
         self.returns.append(done)
 
@@ -533,7 +530,9 @@ class CentralizedRunner(object):
                 if len(S) == num_steps: 
                     going = False
                     break
-                if done: break
+                if done: 
+                    going = False
+                    break
 
         return {"S": torch.cat(S), 
                 "A": torch.cat(A),
@@ -564,6 +563,7 @@ class DQNAgent_central():
         self.optimizer = optim.Adam(self.model.parameters(),
                                     lr=self.learning_rate)
         self.memory.reset()
+        self.update_target()
 
     def update_target(self):
         self.target.load_state_dict(self.model.state_dict())

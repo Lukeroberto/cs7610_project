@@ -6,7 +6,7 @@ from src.utils.dqn import DQNAgent_solo
 from tqdm import tqdm
 
 env = ContinuousGridWorld()
-agent = DQNAgent_solo(env, 1)
+agent = DQNAgent_solo(env, 1,0)
 
 N_EPISODES = 2000
 agent.set_scheduler((0, N_EPISODES), (0.5, 0.01))

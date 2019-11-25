@@ -30,28 +30,31 @@ def main():
     env = ContinuousGridWorld()
     AGENT = DQNAgent_central(env)
     TARGET_UPDATE_INTERVAL = 30
-    BATCH_SIZE = 50
+    EP_LENGTH = 50
     steps_per_cycle = 50
     
     runners = [CentralizedRunner.remote(ContinuousGridWorld(), i) for i in range(num_agents)]
 
-    obj_ids = [runner.get_experience.remote(dict(AGENT.model.named_parameters()), BATCH_SIZE) for runner in runners]
+    obj_ids = [runner.get_experience.remote(dict(AGENT.model.named_parameters()), EP_LENGTH) for runner in runners]
     REWARDS = []
     for i in tqdm(range(1,N_EPISODES)):
         for _ in range(num_agents):
             ready, not_ready = ray.wait(obj_ids, timeout=1)
             if len(ready) == 0: continue
             tmp_reward = 0
+            avg_n_steps = 0
             for r in ready:
                 batch, reward, actor_id = ray.get(r)
                 AGENT.add_batch(batch)
                 eps = max(0.5*(1-i/N_EPISODES),0)
-                not_ready.append(runners[actor_id].get_experience.remote(dict(AGENT.model.named_parameters()), BATCH_SIZE, eps))
+                not_ready.append(runners[actor_id].get_experience.remote(dict(AGENT.model.named_parameters()), EP_LENGTH, eps))
                 tmp_reward += reward
+                avg_n_steps += len(batch["R"])
                 obj_ids = not_ready
                 continue
         REWARDS.append(tmp_reward/len(ready))
-        for _ in range(steps_per_cycle):
+        avg_n_steps /= len(ready)
+        for _ in range(int(avg_n_steps)):
             AGENT.optimize()
         if i % TARGET_UPDATE_INTERVAL == 0:
             AGENT.update_target()
@@ -63,6 +66,7 @@ def main():
     # plt.plot(REWARDS)
     plt.plot(np.convolve(REWARDS, np.ones(100)/100.,mode='valid'))
     plt.show()
+    np.save("results/baseline/centralized_experience.npy", REWARDS)
 
 
 
