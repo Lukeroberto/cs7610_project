@@ -28,7 +28,7 @@ class RandomizedCartpole():
 		return torch.tensor(obs).view(-1, len(obs))
 
 class ContinuousGridWorld():
-	def __init__(self, n=20, rseed=None):
+	def __init__(self, n=30, rseed=None):
 		self.state = None
 		self.state_dim = 2
 		self.state_shape = (n,n)
