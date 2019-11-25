@@ -1,7 +1,7 @@
 import argparse
 import psutil
 
-from src.utils.dqn import *
+from src.utils.decentralized_dqn import *
 from src.utils.environments import *
 from src.utils.graph_utils import *
 from src.utils.plotting_utils import *
@@ -22,12 +22,12 @@ def main():
     rewards, diffusions = test_dict[args.test](args)
     
     plot_workers(rewards, smoothing=200)
-    plt.savefig(f"results/trial_{args.trial}/test_{args.test}/workers.png")
+    plt.savefig(f"results/test_{args.test}/workers.png")
     plot_workers_aggregate(rewards, smoothing=200)
-    plt.savefig(f"results/trial_{args.trial}/test_{args.test}/workers_agg.png")
+    plt.savefig(f"results/test_{args.test}/workers_agg.png")
 
-    np.save(f"results/trial_{args.trial}/test_{args.test}/worker_rewards.npy", rewards)
-    np.save(f"results/trial_{args.trial}/test_{args.test}/worker_diffusions.npy", diffusions)
+    np.save(f"results/test_{args.test}/worker_rewards.npy", rewards)
+    np.save(f"results/test_{args.test}/worker_diffusions.npy", diffusions)
 
 
 
@@ -38,7 +38,7 @@ def test_1a(args):
     fully_connected = full_adj(NUM_CORES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), [i, args.test, args.trial]) for i in range(NUM_CORES)]
+    agents = [DQNAgent.remote(ContinuousGridWorld(), [i, args.test]) for i in range(NUM_CORES)]
 
     # Setup )
 
@@ -64,7 +64,7 @@ def test_1b(args):
     spoke = spoke_adj(NUM_CORES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), [i, args.test, args.trial]) for i in range(NUM_CORES)]
+    agents = [DQNAgent.remote(ContinuousGridWorld(), [i, args.test]) for i in range(NUM_CORES)]
 
     # Setup config
     [agent.set_scheduler.remote((0, NUM_EPISODES-50), (1.0, 0.01)) for agent in agents]
@@ -89,7 +89,7 @@ def test_1c(args):
     chain = chain_adj(NUM_CORES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), [i, args.test, args.trial]) for i in range(NUM_CORES)]
+    agents = [DQNAgent.remote(ContinuousGridWorld(), [i, args.test]) for i in range(NUM_CORES)]
 
     # Setup config
     [agent.set_scheduler.remote((0, NUM_EPISODES-50), (1.0, 0.01)) for agent in agents]
@@ -114,7 +114,7 @@ def test_2a(args):
     triangle = network_partition()
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), [i, args.test, args.trial]) for i in range(NUM_CORES)]
+    agents = [DQNAgent.remote(ContinuousGridWorld(), [i, args.test]) for i in range(NUM_CORES)]
 
     # Setup config
     [agent.set_scheduler.remote((0, NUM_EPISODES-50), (1.0, 0.01)) for agent in agents]
@@ -139,7 +139,7 @@ def test_2b(args):
     spoke = spoke_adj(NUM_CORES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), [i, args.test, args.trial]) for i in range(NUM_CORES)]
+    agents = [DQNAgent.remote(ContinuousGridWorld(), [i, args.test]) for i in range(NUM_CORES)]
 
     # Setup config
     [agent.set_scheduler.remote((0, NUM_EPISODES-50), (1.0, 0.01)) for agent in agents]
@@ -164,7 +164,7 @@ def test_3a(args):
     spoke = spoke_adj(NUM_CORES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), [i, args.test, args.trial], opt=False) for i in range(NUM_CORES)]
+    agents = [DQNAgent.remote(ContinuousGridWorld(), [i, args.test], opt=False) for i in range(NUM_CORES)]
 
     # Setup config
     [agent.set_scheduler.remote((0, NUM_EPISODES-50), (0.0, 0.01)) for agent in agents]
@@ -192,7 +192,7 @@ def test_3b(args):
     chain = chain_adj(NUM_CORES)
 
     # Initialize workers
-    agents = [DQNAgent_solo.remote(ContinuousGridWorld(), [i, args.test, args.trial], opt=False) for i in range(NUM_CORES)]
+    agents = [DQNAgent.remote(ContinuousGridWorld(), [i, args.test], opt=False) for i in range(NUM_CORES)]
 
     # Setup config
     [agent.set_scheduler.remote((0, NUM_EPISODES-50), (0.0, 0.01)) for agent in agents]

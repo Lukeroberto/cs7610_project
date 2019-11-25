@@ -30,12 +30,6 @@ def test_parser():
     )
 
     parser.add_argument(
-        '-n', '--trial',
-        help="Trial number we are on",
-        required=True
-    )
-
-    parser.add_argument(
         '-f', '--file', 
         help="Learned agent file for tests"
     )

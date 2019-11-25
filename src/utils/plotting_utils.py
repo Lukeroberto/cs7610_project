@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 def smooth(y, box_pts):
     box = np.ones(box_pts)/box_pts
@@ -27,3 +28,28 @@ def plot_workers_aggregate(arrays, smoothing=50):
     ax.plot(eps, worker_mean)
     ax.fill_between(eps, worker_mean+worker_std, worker_mean-worker_std, alpha=0.5)
     plt.title("Aggregate Learning Curve")
+
+def plot_training_progress(rewards, diffusions, ids):
+    p_id = ids[0]
+    test_id = ids[1]
+    ep_id = ids[2]
+
+    fig, ax1 = plt.subplots()
+
+    ax1.set_xlabel('Episode')
+    ax1.set_ylabel('Success Rate [%]', color='b')
+    ax1.plot(smooth(rewards[:ep_id], 100), color='b')
+    ax1.tick_params(axis='y', colors='b')
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Cumulative Diffusions', color='r')
+    ax2.plot(smooth(diffusions[:ep_id], 100), color='r')
+    ax2.tick_params(axis='y', colors='r')
+    fig.tight_layout() 
+
+    results_dir = f"results/test_{test_id}/" 
+    if not os.path.isdir(results_dir):
+        os.makedirs(results_dir)
+    plt.savefig(results_dir + f"/agent_{p_id}_returns.png")
+    plt.close()
+
