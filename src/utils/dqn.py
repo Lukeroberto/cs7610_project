@@ -26,7 +26,6 @@ class ReplayMemory(object):
         if len(self.memory) < self.capacity:
             self.memory.append(None)
         self.memory[self.position] = Transition(*args)
-        if self.position+2 == self.capacity: print("LOOP")
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
@@ -479,7 +478,7 @@ class CentralizedRunner(object):
     def get_experience(self, params, num_exp, eps=1.0):
         self.model.load_state_dict(params)
         batch = self.get_batch(num_exp, eps)
-        return batch, batch["R"].numpy().reshape(-1), self.id
+        return batch, batch["R"].numpy().max(), self.id
 
     def get_batch(self, num_steps, eps=1.0):
         S = []
