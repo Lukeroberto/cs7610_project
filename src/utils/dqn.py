@@ -414,11 +414,6 @@ class DQNAgent_solo():
         return returns
 
     def diffuse(self, ep_id):
-
-        if not self.diffuse:
-            self.train_diffusions.append(0)
-            return 
-
         beta = 0.5 #The interpolation parameter    
 
         # Get weights for neighbors

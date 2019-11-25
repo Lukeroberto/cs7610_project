@@ -175,7 +175,7 @@ def test_3a(args):
         agent.set_neighbors.remote(neighbors[agent])
 
     # Set center model
-    agents[0].load_torch.remote("results/agent1.pth")
+    agents[0].load_torch_file.remote("results/example_agent.pth")
 
     # Train 
     train(agents, NUM_EPISODES)

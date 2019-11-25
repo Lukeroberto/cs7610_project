@@ -65,3 +65,12 @@ class MLP_DQN(nn.Module):
 
     def forward(self, x):
         return self.model(x.float())
+
+def train(agents, num_episodes):
+    promises = []
+    for ep_id in range(num_episodes):
+        for agent in agents:
+            promises.append(agent.run_episode.remote(ep_id))
+            agent.diffuse.remote(ep_id)
+    
+    return promises

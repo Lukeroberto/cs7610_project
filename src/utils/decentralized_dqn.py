@@ -73,7 +73,7 @@ class DQNAgent():
         return self.get_model(), self.get_avg_returns()
 
     def save_weights(self):
-        torch.save(self.model.state_dict(), "results/agent{}.pth".format(self.p_id))
+        torch.save(self.model.state_dict(), "results/example_agent.pth".format(self.p_id))
 
     def reset_model(self):
         # resets model parameters
@@ -137,6 +137,19 @@ class DQNAgent():
         loss.backward()
         self.optimizer.step()
 
+    def eval_episode(self):
+        state = self.env.reset()
+        self.model.eval()
+        for step_id in range(self.EP_LENGTH):
+            t_state = self.to_torch(state)
+            t_action = self.model.forward(t_state).argmax().view(1, 1)
+            next_state, reward, done, _ = self.env.step(t_action.item())
+            state = np.copy(next_state)
+            if done:
+                break
+
+        self.returns.append(done)
+        return done
 
     def run_episode(self, ep_id):
         EPS = self.scheduler(ep_id)
@@ -174,11 +187,6 @@ class DQNAgent():
         return done
 
     def diffuse(self, ep_id):
-
-        if not self.diffuse:
-            self.train_diffusions.append(0)
-            return 
-
         beta = 0.5 #The interpolation parameter    
 
         # Get weights for neighbors
@@ -186,7 +194,8 @@ class DQNAgent():
         ready, not_ready = ray.wait(neighbor_models, 
                                     num_returns=len(self.neighbors),
                                     timeout=0.1)
-        if (len(ready) == 0):
+        num_diffusions = len(ready)
+        if (num_diffusions == 0):
             self.train_diffusions.append(0)
             return 
 
@@ -194,8 +203,8 @@ class DQNAgent():
             neighbor_model, avg_return = ray.get(w)
 
             # Dont diffuse if your avg returns are worse than mine
-            if "3" in self.test_id and avg_return < self.get_avg_returns():
-                continue
+            # if "3" in self.test_id and avg_return < self.get_avg_returns():
+            #     continue
 
             # Get named parameter dicts
             params1 = neighbor_model
@@ -209,4 +218,4 @@ class DQNAgent():
             # Set my parameters to average
             self.model.load_state_dict(dict_params2)
         
-        self.train_diffusions.append(len(ready))
+        self.train_diffusions.append(num_diffusions)
