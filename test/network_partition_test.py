@@ -8,7 +8,7 @@ from src.utils.graph_utils import *
 from src.utils.plotting_utils import *
 from src.utils.parser import *
 
-results_dir = f"results/test_fail_stop/" 
+results_dir = f"results/test_network_partition/" 
 if not os.path.isdir(results_dir):
     os.makedirs(results_dir)
 
@@ -32,9 +32,6 @@ def train(agents):
         temp = []
         for agent_id, agent in enumerate(agents):
             temp.append(agent.run_episode.remote(ep_id))
-
-            if agent_id == 0 and ep_id > 500 and ep_id < 1200:
-                continue
             agent.diffuse.remote(ep_id)
         
         temp = [ray.get(t) for t in temp]
@@ -54,45 +51,45 @@ args = p.parse_args()
 NUM_EPISODES = int(args.length)
 
 # One of these architectures
-graph = spoke_adj(NUM_CORES)
+graph = network_partition()
 
 #Baseline
 try:
-    baseline_rewards = np.load("results/test_fail_stop/baseline_rewards.npy")
     print("Loading baseline data")
+    baseline_rewards = np.load("results/test_network_partition/baseline_rewards.npy")
 except:
     print("Generating baseline data")
-    args.test = "default_fail_stop"
+    args.test = "default_network_partition"
     baseline_agents = setup(args, graph)
     baseline_rewards = train(baseline_agents)
-    np.save("results/test_fail_stop/baseline_rewards.npy", baseline_rewards)
+    np.save("results/test_network_partition/baseline_rewards.npy", baseline_rewards)
 
-#Fault
+# Network Partition
 try:
-    test_rewards = np.load("results/test_fail_stop/test_rewards.npy")
+    test_rewards = np.load("results/test_network_partition/test_rewards.npy")
     print("Loading test data")
 except:
     print("Generating test data")
-    args.test = "fail_stop"
+    args.test = "network_partition"
     test_agents = setup(args, graph)
     test_rewards = train(test_agents)
-    np.save("results/test_fail_stop/test_rewards.npy", test_rewards)
+    np.save("results/test_network_partition/test_rewards.npy", test_rewards)
 
 # Plot Baseline
 plt.figure()
 plt.plot(smooth(baseline_rewards[0], 100), label="Baseline", color="C0")
 [plt.plot(smooth(worker, 100), color="C0", alpha=0.2) for worker in baseline_rewards[1:]]
 
-# Plot Non-fail workers
-[plt.plot(smooth(worker, 100) , color="C1", alpha=0.2) for worker in test_rewards[1:]]
+# Plot Partition 1
+plt.plot(smooth(test_rewards[0], 100), label="Network Partition 1", color="C1")
+[plt.plot(smooth(worker, 100), color="C1", alpha=0.2) for worker in test_rewards[1:3]]
 
-# Plot failed worker
-failed = [float('nan') if x < 0 else x for x in smooth(test_rewards[0], 75)]
-plt.plot(failed,  label="Fail Stop", color="r")
+# Plot Partition 2
+plt.plot(smooth(test_rewards[3], 100), label="Network Partition 2", color="C2")
+[plt.plot(smooth(worker, 100), color="C2", alpha=0.2) for worker in test_rewards[4:6]]
 
 plt.title("Worker Learning Curves")
 plt.legend(loc="lower right")
 plt.xlabel("Episode #")
 plt.ylabel("Success %")
-
-plt.savefig("results/test_fail_stop/fault_stop_test.png")
+plt.savefig("results/test_network_partition/test_network_partition.png")

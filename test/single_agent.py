@@ -6,37 +6,18 @@ from src.utils.dqn import DQNAgent_solo
 from src.utils.decentralized_dqn import DQNAgent
 from tqdm import tqdm
 
-<<<<<<< Updated upstream
-def main(n_episodes=2000, n_repeats=5, save=True, show=False):
-    env = ContinuousGridWorld()
-    agent = DQNAgent_solo(env, [0,1,2])
+import ray
 
-    N_EPISODES = n_episodes
-    N_REPEATS = n_repeats
-    agent.set_scheduler((0, N_EPISODES), (0.5, 0.01))
-
-    RETURNS = np.zeros((N_REPEATS,N_EPISODES))
-    for repeat_id in range(N_REPEATS):
-        agent.reset_model()
-        for ep_id in tqdm(range(N_EPISODES)):
-            RETURNS[repeat_id, ep_id] = agent.run_episode(ep_id)
-    if save:
-        np.save("results/baseline/single_agent.npy", RETURNS)
-=======
 env = ContinuousGridWorld()
 N_EPISODES = 1200
-# agent = DQNAgent_solo(env, [0, 0, 0])
-agent = DQNAgent(env, [0, 0, 0], logging=False)
-agent.load_torch_file("results/example_agent.pth")
+ray.init(logging_level="ERROR")
+agent = DQNAgent.remote(env, [0, 0, 0], logging=False)
+
+agent.set_scheduler.remote((0, N_EPISODES), (0.5, 0.01))
 
 RETURNS = np.zeros(N_EPISODES)
 for ep_id in tqdm(range(N_EPISODES)):
-    RETURNS[ep_id] = agent.eval_episode()
-# agent.set_scheduler((0, N_EPISODES), (0.5, 0.01))
-
-# RETURNS = np.zeros(N_EPISODES)
-# for ep_id in tqdm(range(N_EPISODES)):
-#     RETURNS[ep_id] = agent.run_episode(ep_id)
+    RETURNS[ep_id] = ray.get(agent.run_episode.remote(ep_id))
 
 # agent.save_weights()
 
@@ -57,14 +38,11 @@ for ep_id in tqdm(range(N_EPISODES)):
 #                 color="r", head_width=0.2)
 # plt.plot(N*env.goal[1], N*env.goal[0], 'go')
 # plt.axis('off')
->>>>>>> Stashed changes
-    
-    if show:
-        plt.figure()
-        for i in range(N_REPEATS):
-            plt.plot(np.convolve(RETURNS[i,:], 0.02*np.ones(50), mode='valid'))
+plt.figure()
+# for i in range(N_REPEATS):
+plt.plot(np.convolve(RETURNS, 0.02*np.ones(50), mode='valid'))
 
-        plt.show()
+plt.show()
 
 if __name__ == "__main__":
     main()

@@ -172,13 +172,23 @@ class DQNAgent():
         for _ in range(step_id+1):
             if self.opt:
                 self.optimize()
+        
+        if self.test_id == "fail_stop" and \
+                self.p_id == 0 and \
+                ep_id > 500 and \
+                ep_id < 1200:
+
+            self.reset_model()
+            self.update_target()
+            done = -1
+        
         if ep_id % self.target_update_interval == 0:
             self.update_target()
 
         self.returns.append(done)
 
         # Log periodically
-        if self.logging and ep_id > 100 and ep_id % 50 == 0:
+        if self.logging and ep_id > 100 and ep_id % 15 == 0:
             rewards = np.array(self.returns)
             diffusions = np.array(self.train_diffusions).cumsum()
 
@@ -190,9 +200,23 @@ class DQNAgent():
         beta = 0.5 #The interpolation parameter    
 
         # Get weights for neighbors
-        neighbor_models = [n.get_model_and_avg_returns.remote() for n in self.neighbors]
+        if self.test_id == "fail_stop" and self.p_id != 0 and ep_id > 500 and ep_id < 1200:
+            temp_neighbors = self.neighbors[1:]
+        elif self.test_id == "fail_stop" and self.p_id == 0 and ep_id > 500 and ep_id < 1200:
+            temp_neighbors = []
+        elif self.test_id == "network_partition" and self.p_id in [2, 3] and ep_id > 500 and ep_id < 1200:
+            if self.p_id == 2:
+                temp_neighbors = self.neighbors[:-1]
+            if self.p_id == 3:
+                temp_neighbors = self.neighbors[1:]
+        else:
+            temp_neighbors = self.neighbors
+        
+
+        neighbor_models = [n.get_model_and_avg_returns.remote() for n in temp_neighbors]
+
         ready, not_ready = ray.wait(neighbor_models, 
-                                    num_returns=len(self.neighbors),
+                                    num_returns=len(neighbor_models),
                                     timeout=0.1)
         num_diffusions = len(ready)
         if (num_diffusions == 0):
