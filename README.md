@@ -10,4 +10,8 @@ In order to get started, run:
 
 To run test cases, use the -m flag: 
 
-    python -m test._test_
+Ex:
+
+    python -m test.fail_stop_test -t "fail_stop" -l 2000
+
+Where the "-t" flag refers to the test name (for plotting purposes) and the -l refers to the training length (number of episodes)
